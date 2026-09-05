@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIRAT — AI Risk Assessment Tool v1.0</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/prop-types/prop-types.min.js" crossorigin></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
+<style>
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f9;margin:0;}
+.nav-item{transition:all .15s;border-left:3px solid transparent;cursor:pointer;}
+.nav-item:hover{background:#e8f0fe;border-left-color:#6b9ddf;}
+.nav-item.active{background:#dbeafe;border-left-color:#1e3a5f;font-weight:700;color:#1e3a5f;}
+.nav-item.locked{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.hcell{transition:opacity .2s;cursor:pointer;}
+.hcell:hover{opacity:.72;}
+.toast-in{animation:toastSlide .3s ease forwards;}
+@keyframes toastSlide{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.fi{border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;width:100%;font-size:13px;transition:border .15s;box-sizing:border-box;}
+.fi:focus{outline:none;border-color:#1e3a5f;box-shadow:0 0 0 3px rgba(30,58,95,.12);}
+.btn-p{background:#1e3a5f;color:white;padding:8px 18px;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;border:none;transition:background .15s;}
+.btn-p:hover{background:#2a5298;}
+.btn-p:disabled{opacity:.5;cursor:not-allowed;}
+.btn-s{background:white;color:#1e3a5f;border:2px solid #1e3a5f;padding:7px 16px;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s;}
+.btn-s:hover{background:#e8f0fe;}
+.btn-d{background:#dc2626;color:white;padding:7px 14px;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;border:none;}
+.btn-d:hover{background:#b91c1c;}
+.card{background:white;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:20px;}
+.stitle{font-size:15px;font-weight:700;color:#1e3a5f;border-bottom:2px solid #e8f0fe;padding-bottom:8px;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+table{border-collapse:collapse;width:100%;font-size:13px;}
+th{background:#f0f4f8;color:#374151;font-weight:600;padding:9px 12px;text-align:left;border:1px solid #e5e7eb;white-space:nowrap;}
+td{padding:7px 12px;border:1px solid #e5e7eb;vertical-align:middle;}
+tr:nth-child(even) td{background:#fafafa;}
+tr:hover td{background:#f0f4f8;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700;}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#f1f1f1}::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:3px}
+@media print{.no-print{display:none!important}body{background:white}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:center;justify-content:center;}
+.modal-box{background:white;border-radius:12px;padding:28px;max-width:520px;width:95%;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.progress-bar{height:6px;border-radius:3px;background:#e5e7eb;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;background:#1e3a5f;transition:width .4s;}
+</style>
+</head>
+<body>
+<!-- Loading fallback visible before React mounts -->
+<div id="airat-loading" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f1f5f9;z-index:9999;font-family:'Segoe UI',sans-serif;">
+  <div style="background:white;border-radius:12px;padding:36px 44px;box-shadow:0 4px 24px rgba(0,0,0,.12);text-align:center;max-width:520px;width:90%">
+    <div style="font-size:28px;margin-bottom:8px;">🛡️</div>
+    <div style="font-size:20px;font-weight:700;color:#1e3a5f;margin-bottom:6px;">AIRAT v1.0</div>
+    <div id="airat-status" style="font-size:13px;color:#6b7280;margin-bottom:16px;">Cargando recursos…</div>
+    <div style="height:4px;border-radius:2px;background:#e5e7eb;overflow:hidden;width:200px;margin:0 auto;">
+      <div id="airat-bar" style="height:100%;border-radius:2px;background:#1e3a5f;width:0%;transition:width .4s;"></div>
+    </div>
+    <div id="airat-error" style="display:none;margin-top:16px;padding:12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;text-align:left;font-size:12px;color:#dc2626;font-family:monospace;white-space:pre-wrap;word-break:break-word;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var bar=document.getElementById('airat-bar');
+  var status=document.getElementById('airat-status');
+  var errDiv=document.getElementById('airat-error');
+  function setBar(pct){if(bar)bar.style.width=pct+'%';}
+  function setStatus(msg){if(status)status.textContent=msg;}
+  window.__airatSetBar=setBar;
+  window.__airatSetStatus=setStatus;
+  window.__airatHideLoading=function(){
+    var el=document.getElementById('airat-loading');
+    if(el){el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(function(){el.remove();},350);}
+  };
+  window.onerror=function(msg,src,line,col,err){
+    setStatus('❌ Error al cargar');
+    if(errDiv){
+      errDiv.style.display='block';
+      errDiv.textContent='ERROR: '+msg+'\nArchivo: '+(src||'desconocido')+'\nLínea: '+line+(err&&err.stack?'\n\nStack:\n'+err.stack:'');
+    }
+    return false;
+  };
+  window.addEventListener('unhandledrejection',function(e){
+    setStatus('❌ Error de promesa');
+    if(errDiv){errDiv.style.display='block';errDiv.textContent='Promise Error: '+(e.reason?e.reason.toString():'desconocido');}
+  });
+  setBar(10); setStatus('Cargando React…');
+  /* Intercept console.error to catch Babel transpilation failures */
+  var origErr=console.error;
+  console.error=function(){
+    var msg=Array.prototype.slice.call(arguments).join(' ');
+    if(msg&&(msg.indexOf('Babel')!==-1||msg.indexOf('SyntaxError')!==-1||msg.indexOf('transform')!==-1||msg.indexOf('plugin')!==-1)){
+      setStatus('❌ Error de Babel/JSX');
+      if(errDiv){errDiv.style.display='block';errDiv.textContent='Babel error:\n'+msg;}
+    }
+    origErr.apply(console,arguments);
+  };
+  /* Safety timeout: if app never renders in 12s, show helpful error */
+  setTimeout(function(){
+    var el=document.getElementById('airat-loading');
+    if(el&&el.parentNode){
+      setStatus('⚠️ La aplicación tardó demasiado en cargar');
+      if(errDiv){
+        errDiv.style.display='block';
+        errDiv.textContent='La aplicación no se cargó en 12 segundos.\n\nPosibles causas:\n1. Sin conexión a internet (CDNs no accesibles)\n2. Error interno de Babel/JSX (revise consola F12)\n3. Incompatibilidad de Recharts con React 18\n\nAbre F12 → Consola para ver el error exacto.';
+      }
+    }
+  },12000);
+})();
+</script>
+<div id="root"></div>
+<script>window.__airatSetBar&&window.__airatSetBar(40);window.__airatSetStatus&&window.__airatSetStatus('Cargando Recharts…');</script>
+<script type="text/babel" data-presets="react">
+/* ── Confirmar que Recharts global existe ── */
+if(typeof React==='undefined'){throw new Error('React no se cargó correctamente. Verifique conexión a internet.');}
+if(typeof ReactDOM==='undefined'){throw new Error('ReactDOM no se cargó correctamente.');}
+if(typeof Recharts==='undefined'){throw new Error('Recharts no se cargó correctamente desde CDN. Verifique conexión a internet.');}
+window.__airatSetBar&&window.__airatSetBar(70);
+window.__airatSetStatus&&window.__airatSetStatus('Inicializando aplicación…');
+const {useState,useEffect,useReducer,useContext,createContext,useCallback,useRef,useMemo}=React;
+const {RadarChart,Radar,PolarGrid,PolarAngleAxis,PolarRadiusAxis,ResponsiveContainer,Tooltip:RT,Legend,LineChart,Line,XAxis,YAxis,CartesianGrid}=Recharts;
+const TODAY=new Date().toISOString().split('T')[0];
+
+/* ═══════ CATÁLOGO DE RIESGOS IA (42) ═══════ */
+const DOMAINS=[
+  {id:1,name:'Modelo / Algoritmo',color:'#6366f1',short:'Modelo'},
+  {id:2,name:'Datos',color:'#0ea5e9',short:'Datos'},
+  {id:3,name:'Ciberseguridad',color:'#ef4444',short:'Ciber'},
+  {id:4,name:'Operacional',color:'#f97316',short:'Operac.'},
+  {id:5,name:'Cumplimiento / Regulatorio',color:'#10b981',short:'Cumpli.'},
+  {id:6,name:'Estratégico / Reputacional',color:'#8b5cf6',short:'Estratég.'},
+  {id:7,name:'Gobierno / Ética',color:'#f59e0b',short:'Gobierno'},
+  {id:8,name:'Terceros / Cadena Suministro',color:'#ec4899',short:'Terceros'},
+];
+const RC=[
+  {d:1,code:'R01',name:'Sesgo algorítmico (bias) en decisiones automatizadas',desc:'Exposición a sanciones regulatorias por discriminación, pérdidas por litigios civiles, exclusión de segmentos de mercado y deterioro reputacional ante reguladores y sociedad civil.'},
+  {d:1,code:'R02',name:'Deriva del modelo (model drift) por cambio en distribución de datos',desc:'Pérdidas crediticias por decisiones basadas en predicciones degradadas, incremento en tasas de morosidad e impacto negativo en indicadores de cartera y resultados financieros.'},
+  {d:1,code:'R03',name:'Sobreajuste (overfitting) que reduce capacidad de generalización',desc:'Pérdidas financieras por decisiones crediticias incorrectas en escenarios no previstos, necesidad de redesarrollo del modelo y costos operativos adicionales de remediación.'},
+  {d:1,code:'R04',name:'Alucinaciones o respuestas incorrectas (hallucination — LLMs)',desc:'Toma de decisiones institucionales basada en información errónea, daño reputacional ante clientes y reguladores, y responsabilidad legal por información incorrecta provista a terceros.'},
+  {d:1,code:'R05',name:'Falta de explicabilidad / interpretabilidad (caja negra)',desc:'Incapacidad de cumplir el derecho a explicación de decisiones automatizadas exigido por reguladores, imposibilidad de defender decisiones ante demandas legales y obstáculo ante auditorías supervisoras.'},
+  {d:1,code:'R06',name:'Datos de entrenamiento sesgados o no representativos',desc:'Discriminación sistemática no detectada en las predicciones, invalidación del modelo por parte de reguladores y costos de rediseño, retrabajo y resarcimiento a grupos afectados.'},
+  {d:2,code:'R07',name:'Calidad insuficiente de datos de entrada (garbage in, garbage out)',desc:'Pérdidas directas por decisiones basadas en datos incorrectos o incompletos, costos de depuración y retrabajo, y deterioro de la confianza interna y externa en el sistema IA.'},
+  {d:2,code:'R08',name:'Fuga de datos confidenciales hacia modelo o proveedor externo',desc:'Sanciones regulatorias severas (SB/BCP, GDPR), pérdidas financieras por brechas de datos, daño reputacional con clientes y costos elevados de respuesta y notificación de incidentes.'},
+  {d:2,code:'R09',name:'Uso no autorizado de datos personales (incumplimiento LOPD/GDPR)',desc:'Multas de hasta el 4% de la facturación global bajo GDPR, inhabilitación del sistema por orden supervisora y daño reputacional ante clientes y autoridades de protección de datos.'},
+  {d:2,code:'R10',name:'Envenenamiento de datos de entrenamiento (data poisoning)',desc:'Comprometimiento total de la integridad del modelo, pérdidas financieras por decisiones manipuladas por actores maliciosos y costos de redesarrollo completo del sistema IA.'},
+  {d:2,code:'R11',name:'Dependencia de fuentes de datos externas no auditadas',desc:'Pérdidas por decisiones basadas en datos externos no confiables, imposibilidad de cumplir requisitos de due diligence regulatorio y alta vulnerabilidad ante auditorías supervisoras.'},
+  {d:2,code:'R12',name:'Falta de trazabilidad / linaje de datos utilizados',desc:'Incumplimiento de requisitos regulatorios de trazabilidad, imposibilidad de reproducir y auditar resultados del modelo y limitación para identificar la fuente de errores sistémicos.'},
+  {d:3,code:'R13',name:'Ataques adversariales (manipulación de inputs al modelo)',desc:'Pérdidas financieras por decisiones manipuladas maliciosamente a escala, compromiso de la integridad operativa del sistema y daño reputacional ante clientes y reguladores.'},
+  {d:3,code:'R14',name:'Extracción no autorizada del modelo (model stealing)',desc:'Pérdida de ventaja competitiva y propiedad intelectual estratégica, exposición de metodología propietaria a competidores y costos de litigio por violación de derechos de propiedad.'},
+  {d:3,code:'R15',name:'Acceso no autorizado a APIs o endpoints del sistema IA',desc:'Exposición de datos sensibles de clientes, manipulación maliciosa de outputs con impacto financiero directo y sanciones regulatorias por incumplimiento de estándares de seguridad.'},
+  {d:3,code:'R16',name:'Prompt injection en modelos generativos',desc:'Evasión de controles críticos del sistema, extracción de información confidencial y generación de outputs maliciosos que comprometan la seguridad de la organización y sus clientes.'},
+  {d:3,code:'R17',name:'Exposición de datos sensibles vía outputs del modelo',desc:'Vulneración de privacidad de clientes con consecuencias regulatorias, sanciones por divulgación no autorizada y pérdida de confianza de stakeholders en los controles del sistema IA.'},
+  {d:4,code:'R18',name:'Fallo de disponibilidad del sistema IA en producción',desc:'Interrupción de operaciones críticas dependientes del sistema IA, pérdidas financieras por inactividad operativa, incumplimiento de SLAs con clientes y deterioro de la experiencia de servicio.'},
+  {d:4,code:'R19',name:'Automatización de decisiones sin intervención humana suficiente',desc:'Decisiones erróneas no detectadas replicadas a escala masiva, responsabilidad legal por daños a clientes afectados e incumplimiento de requerimientos regulatorios de supervisión humana.'},
+  {d:4,code:'R20',name:'Dependencia excesiva de proveedor externo (vendor lock-in)',desc:'Alta vulnerabilidad ante aumentos de precio, discontinuación del servicio o insolvencia del proveedor, con costos elevados y prolongados tiempos de migración a alternativas tecnológicas.'},
+  {d:4,code:'R21',name:'Falta de plan de contingencia / rollback ante fallo del modelo',desc:'Incapacidad de restablecer operaciones críticas ante fallo del sistema IA, prolongación de interrupciones del servicio y pérdidas financieras y reputacionales acumuladas durante la interrupción.'},
+  {d:4,code:'R22',name:'Errores en integración con sistemas legados (APIs, middleware)',desc:'Pérdidas financieras por transacciones fallidas o duplicadas, deterioro de la calidad de datos en sistemas core bancarios y costos elevados de remediación técnica y reconciliación.'},
+  {d:4,code:'R23',name:'Ausencia de validación de outputs antes de su uso',desc:'Propagación de errores del modelo a decisiones y procesos críticos con impacto financiero directo, y responsabilidad legal ante clientes afectados por decisiones incorrectas no detectadas.'},
+  {d:5,code:'R24',name:'Incumplimiento de regulación IA aplicable (EU AI Act, circulares SB/BCP)',desc:'Sanciones y multas regulatorias, suspensión del servicio por orden supervisora, costos de adecuación forzosa y daño reputacional ante el regulador y el mercado financiero.'},
+  {d:5,code:'R25',name:'Uso de IA en decisiones reguladas sin aprobación supervisora',desc:'Invalidación de decisiones tomadas con el sistema no aprobado, sanciones administrativas, obligación de correcciones retroactivas y riesgo de suspensión de actividades reguladas.'},
+  {d:5,code:'R26',name:'Falta de documentación requerida por el regulador (Model Cards)',desc:'Observaciones regulatorias formales con plan de remediación exigido, incapacidad de demostrar cumplimiento ante auditorías y costos de reconstrucción documental retroactiva.'},
+  {d:5,code:'R27',name:'Incumplimiento de principios de IA responsable / política interna',desc:'Exposición reputacional ante escrutinio público y regulatorio, riesgo de litigios por prácticas contrarias a estándares éticos y pérdida de confianza de stakeholders clave.'},
+  {d:5,code:'R28',name:'Responsabilidad legal por decisiones autónomas incorrectas',desc:'Litigios civiles con indemnizaciones a clientes afectados, costos legales elevados, precedente judicial adverso para la institución y potencial daño sistémico a la imagen del sector.'},
+  {d:6,code:'R29',name:'Decisiones discriminatorias que generan impacto reputacional',desc:'Pérdida masiva de clientes, cobertura mediática negativa sostenida, intensificación de la supervisión regulatoria y deterioro permanente del valor de marca e imagen institucional.'},
+  {d:6,code:'R30',name:'Comunicación inadecuada al cliente sobre uso de IA en decisiones',desc:'Pérdida de confianza de clientes, reclamaciones masivas ante organismos de defensa del consumidor, riesgo de litigios por falta de transparencia y sanciones por incumplimiento informativo.'},
+  {d:6,code:'R31',name:'Expectativas no alineadas entre negocio y capacidades reales del modelo',desc:'Pérdidas por inversiones en proyectos sobredimensionados, daño reputacional interno de las áreas de IA, costos de remediación y retraso significativo en la captura del valor de negocio esperado.'},
+  {d:6,code:'R32',name:'Dependencia estratégica en IA sin estrategia de salida definida',desc:'Imposibilidad de mantener operaciones ante fallo o discontinuación del sistema IA, pérdidas financieras por parálisis operativa y alta vulnerabilidad ante cambios regulatorios o tecnológicos disruptivos.'},
+  {d:7,code:'R33',name:'Ausencia de propietario del modelo (model owner) definido',desc:'Modelos que se degradan silenciosamente sin detección, incapacidad institucional de rendir cuentas ante incidentes y vacíos de control que facilitan el uso indebido o no autorizado.'},
+  {d:7,code:'R34',name:'Falta de política de uso aceptable de IA aprobada',desc:'Proliferación no controlada de IA en procesos críticos, uso inadecuado por personal no autorizado y ausencia de lineamientos para responder ante requerimientos regulatorios o incidentes.'},
+  {d:7,code:'R35',name:'Sin proceso formal de aprobación de modelos IA (model governance)',desc:'Modelos en producción con riesgos no evaluados, exposición a fallas catastróficas no detectadas y responsabilidad institucional por ausencia de controles formales de gobernanza.'},
+  {d:7,code:'R36',name:'Uso de IA sin consideración del impacto en empleo / RRHH',desc:'Conflictos laborales, daño reputacional como empleador responsable, riesgo de litigios por incumplimiento de obligaciones de gestión del cambio y deterioro del clima organizacional.'},
+  {d:7,code:'R37',name:'Sin comité o instancia de revisión ética de proyectos IA',desc:'Implementación de sistemas con sesgos o impactos adversos no detectados, responsabilidad institucional ante efectos negativos sobre stakeholders y debilidad ante escrutinio regulatorio.'},
+  {d:7,code:'R38',name:'Falta de formación y concientización del personal usuario',desc:'Errores operativos por mal uso del sistema, perpetuación de sesgos humanos en el proceso IA-asistido y exposición por incumplimiento de requisitos de capacitación regulatoria exigidos.'},
+  {d:8,code:'R39',name:'Proveedor de IA sin certificaciones de seguridad (SOC2, ISO 27001)',desc:'Exposición de datos de clientes ante proveedor con controles insuficientes, responsabilidad regulatoria por actos de terceros contratados y costos de remediación ante brechas de seguridad.'},
+  {d:8,code:'R40',name:'Cambios unilaterales del proveedor en el modelo sin notificación',desc:'Degradación no detectada del servicio, incumplimiento de compromisos con clientes basados en capacidades anteriores y costos de re-validación y ajuste de procesos internos afectados.'},
+  {d:8,code:'R41',name:'Falta de SLA de disponibilidad y precisión del modelo',desc:'Sin mecanismo contractual de compensación ante caídas del servicio, sin incentivo para el proveedor y exposición legal ante incumplimiento de obligaciones propias con clientes y reguladores.'},
+  {d:8,code:'R42',name:'Sin cláusulas contractuales de auditoría y derecho de inspección',desc:'Imposibilidad de verificar cumplimiento regulatorio del proveedor, vulnerabilidad ante hallazgos de auditoría interna o externa y limitación para exigir mejoras o penalizar incumplimientos contractuales.'},
+];
+
+const KRI_CAT=[
+  {id:'KRI-01',dom:'Modelo/Algoritmo',name:'% predicciones fuera del rango esperado (model drift)',unit:'%'},
+  {id:'KRI-02',dom:'Modelo/Algoritmo',name:'Tasa de alucinaciones detectadas en outputs (sample testing)',unit:'%'},
+  {id:'KRI-03',dom:'Modelo/Algoritmo',name:'Score de equidad/fairness por grupo demográfico',unit:'índice'},
+  {id:'KRI-04',dom:'Modelo/Algoritmo',name:'Días desde último re-entrenamiento vs. plan',unit:'días'},
+  {id:'KRI-05',dom:'Datos',name:'% datos de entrada con calidad insuficiente',unit:'%'},
+  {id:'KRI-06',dom:'Datos',name:'# incidentes de fuga de datos relacionados con IA',unit:'#'},
+  {id:'KRI-07',dom:'Datos',name:'Cobertura de linaje de datos documentado',unit:'%'},
+  {id:'KRI-08',dom:'Ciberseguridad',name:'# intentos de prompt injection / ataques adversariales',unit:'#'},
+  {id:'KRI-09',dom:'Ciberseguridad',name:'% endpoints IA con autenticación multifactor activa',unit:'%'},
+  {id:'KRI-10',dom:'Operacional',name:'Disponibilidad del sistema IA — uptime',unit:'%'},
+  {id:'KRI-11',dom:'Operacional',name:'Tiempo medio de resolución de incidentes IA — MTTR',unit:'h'},
+  {id:'KRI-12',dom:'Operacional',name:'% decisiones IA revisadas por humano',unit:'%'},
+  {id:'KRI-13',dom:'Cumplimiento',name:'# observaciones regulatorias relacionadas con IA',unit:'#'},
+  {id:'KRI-14',dom:'Cumplimiento',name:'% personal usuario capacitado en uso responsable de IA',unit:'%'},
+  {id:'KRI-15',dom:'Cumplimiento',name:'Días desde última revisión formal del modelo',unit:'días'},
+];
+
+const CTRL_LVL=[
+  {v:0,label:'Sin control',factor:0,color:'#ef4444'},
+  {v:1,label:'Control débil',factor:0.2,color:'#f97316'},
+  {v:2,label:'Control moderado',factor:0.4,color:'#f59e0b'},
+  {v:3,label:'Control fuerte',factor:0.6,color:'#84cc16'},
+  {v:4,label:'Control robusto',factor:0.8,color:'#22c55e'},
+];
+
+function getRiskLvl(s){
+  if(s>=20) return {label:'CRÍTICO',color:'#dc2626',bg:'#fee2e2',code:'C',txt:'🔴'};
+  if(s>=12) return {label:'ALTO',color:'#ea580c',bg:'#fed7aa',code:'A',txt:'🟠'};
+  if(s>=6)  return {label:'MODERADO',color:'#ca8a04',bg:'#fef9c3',code:'M',txt:'🟡'};
+  return {label:'BAJO',color:'#16a34a',bg:'#dcfce7',code:'B',txt:'🟢'};
+}
+
+function heatColor(p,i){
+  const s=p*i;
+  if(s>=20) return '#ef4444';
+  if(s>=15) return '#f97316';
+  if(s>=10) return '#fb923c';
+  if(s>=6)  return '#facc15';
+  if(s>=3)  return '#86efac';
+  return '#4ade80';
+}
+
+
+/* ═══════ DEMO DATA ═══════ */
+const DEMO={
+  project:{name:'Sistema de Scoring Crediticio con IA Generativa',type:'Generativo',useCase:'Scoring crediticio automatizado para personas naturales usando LLM + datos alternativos',areas:['Créditos','Tecnología','Cumplimiento','Atención al Cliente'],provider:'Híbrido',providerName:'OpenAI + Desarrollo interno',phase:'Piloto',respArea:'Ana García — Gerente de Créditos',respRisk:'Carlos López — Jefe de Gestión de Riesgos',date:TODAY,dataClass:'Confidenciales',hasPersonal:true},
+  risks:RC.map((r,i)=>{
+    const selCodes=['R01','R02','R04','R05','R07','R08','R09','R16','R18','R19','R20','R24','R26','R29','R33','R35'];
+    const applies=selCodes.includes(r.code);
+    const evals={
+      'R01':{p:4,iF:4,iR:5,iL:3,ctrl:2,strategy:'Mitigar'},
+      'R02':{p:3,iF:3,iR:3,iL:2,ctrl:2,strategy:'Mitigar'},
+      'R04':{p:4,iF:3,iR:4,iL:3,ctrl:1,strategy:'Mitigar'},
+      'R05':{p:5,iF:3,iR:4,iL:4,ctrl:1,strategy:'Mitigar'},
+      'R07':{p:3,iF:3,iR:2,iL:2,ctrl:2,strategy:'Mitigar'},
+      'R08':{p:2,iF:4,iR:5,iL:5,ctrl:3,strategy:'Mitigar'},
+      'R09':{p:3,iF:2,iR:4,iL:5,ctrl:2,strategy:'Mitigar'},
+      'R16':{p:3,iF:3,iR:3,iL:2,ctrl:1,strategy:'Mitigar'},
+      'R18':{p:2,iF:4,iR:3,iL:2,ctrl:3,strategy:'Mitigar'},
+      'R19':{p:4,iF:3,iR:4,iL:4,ctrl:2,strategy:'Mitigar'},
+      'R20':{p:3,iF:3,iR:3,iL:2,ctrl:2,strategy:'Transferir'},
+      'R24':{p:3,iF:2,iR:3,iL:5,ctrl:2,strategy:'Mitigar'},
+      'R26':{p:4,iF:1,iR:3,iL:4,ctrl:1,strategy:'Mitigar'},
+      'R29':{p:3,iF:3,iR:5,iL:4,ctrl:2,strategy:'Mitigar'},
+      'R33':{p:4,iF:2,iR:3,iL:3,ctrl:0,strategy:'Mitigar'},
+      'R35':{p:4,iF:2,iR:3,iL:4,ctrl:0,strategy:'Mitigar'},
+    };
+    const actions={
+      'R01':[{desc:'Implementar pruebas de fairness con métricas Equalized Odds',resp:'Equipo de Ciencia de Datos',due:'2026-06-30',status:'En Progreso'},{desc:'Auditoría externa de sesgo por consultor especializado',resp:'Gerencia de Riesgos',due:'2026-07-31',status:'Pendiente'}],
+      'R05':[{desc:'Implementar módulo de explicabilidad LIME/SHAP para todas las decisiones',resp:'Tecnología',due:'2026-06-15',status:'En Progreso'}],
+      'R08':[{desc:'Cifrado de datos en tránsito y en reposo hacia API OpenAI',resp:'Ciberseguridad',due:'2026-05-30',status:'Implementado'},{desc:'Configurar política de no-training de datos con OpenAI',resp:'Legal',due:'2026-05-15',status:'Verificado'}],
+      'R09':[{desc:'Anonimización de datos personales antes del envío al modelo',resp:'Arquitectura de Datos',due:'2026-06-30',status:'En Progreso'},{desc:'Actualización de política de privacidad y consentimientos',resp:'Cumplimiento',due:'2026-06-15',status:'Pendiente'}],
+      'R19':[{desc:'Definir flujo de revisión humana para scores < 0.3 y > 0.85',resp:'Créditos',due:'2026-06-01',status:'Implementado'}],
+      'R24':[{desc:'Mapeo de requerimientos EU AI Act a controles existentes',resp:'Cumplimiento',due:'2026-07-15',status:'Pendiente'}],
+      'R26':[{desc:'Elaborar Model Card completo siguiendo estándar regulatorio',resp:'Gerencia de Riesgos',due:'2026-06-30',status:'En Progreso'}],
+      'R33':[{desc:'Designar formalmente el Model Owner con TOR aprobadas',resp:'Gerencia General',due:'2026-05-31',status:'Pendiente'}],
+      'R35':[{desc:'Establecer proceso formal de Model Governance con Comité IA',resp:'Gerencia de Riesgos',due:'2026-07-01',status:'Pendiente'}],
+    };
+    return {...r,applies,contextDesc:applies?`Identificado en proceso de ${r.d<=3?'diseño del modelo':'implementación'} del scoring.`:'',
+      ...(applies&&evals[r.code]?evals[r.code]:{p:0,iF:0,iR:0,iL:0,ctrl:2,strategy:'Mitigar'}),
+      actions:(applies&&actions[r.code])||[],residualObj:applies?Math.max(1,Math.round((r.d<=2?16:r.d<=4?12:8)*0.4)):'',
+      acceptJust:'',approvalLvl:'Gerencia de Riesgos'};
+  }),
+  kris:KRI_CAT.map(k=>{
+    const vals={'KRI-01':{cur:8.2,g:5,y:10,r:15,freq:'Mensual',resp:'Equipo Data Science',src:'MLflow / Monitoreo de modelo',hist:[6,7,9,8.5,8.2,8.2]},
+      'KRI-02':{cur:3.1,g:3,y:5,r:8,freq:'Mensual',resp:'Equipo Data Science',src:'Revisión de muestra manual',hist:[2,2.5,3,3,3.1,3.1]},
+      'KRI-03':{cur:0.82,g:0.9,y:0.8,r:0.7,freq:'Trimestral',resp:'Gerencia de Riesgos',src:'Test de fairness automatizado',hist:[0.91,0.88,0.85,0.83,0.82,0.82]},
+      'KRI-05':{cur:4.5,g:3,y:5,r:8,freq:'Semanal',resp:'Data Engineering',src:'Pipeline de calidad de datos',hist:[5,4.8,4.5,4.2,4.5,4.5]},
+      'KRI-10':{cur:99.2,g:99.5,y:99,r:98,freq:'Semanal',resp:'Tecnología',src:'Monitoreo de infraestructura',hist:[99.8,99.5,99.1,99.3,99.2,99.2]},
+      'KRI-12':{cur:42,g:30,y:20,r:10,freq:'Semanal',resp:'Gerencia de Créditos',src:'Sistema Core Bancario',hist:[15,22,30,38,42,42]},
+      'KRI-14':{cur:68,g:90,y:75,r:60,freq:'Trimestral',resp:'RRHH',src:'LMS Corporativo',hist:[30,45,55,62,68,68]},
+    };
+    const v=vals[k.id]||{cur:0,g:10,y:20,r:30,freq:'Mensual',resp:'Por asignar',src:'Por definir',hist:[0,0,0,0,0,0]};
+    return {...k,active:!!vals[k.id],currentVal:v.cur,thG:v.g,thY:v.y,thR:v.r,freq:v.freq,resp:v.resp,src:v.src,hist:v.hist};
+  }),
+  auditFindings:[
+    {code:'AUD-001',desc:'El modelo de scoring no cuenta con módulo de explicabilidad implementado. Las decisiones de rechazo no pueden ser explicadas al cliente ni al regulador.',cause:'Tecnología',riskRef:'R05',crit:'Alta',rec:'Implementar LIME/SHAP con entrega de carta de decisión explicada a clientes rechazados.',area:'Tecnología / Créditos',due:'2026-06-30',status:'En proceso'},
+    {code:'AUD-002',desc:'No se ha designado formalmente el Model Owner con Términos de Referencia aprobados. La gobernanza del modelo es informal.',cause:'Gobierno',riskRef:'R33',crit:'Alta',rec:'Designar Model Owner y aprobar TOR en sesión de Directorio.',area:'Gerencia General',due:'2026-05-31',status:'Abierto'},
+    {code:'AUD-003',desc:'El plan de capacitación en IA responsable alcanzó sólo al 68% del personal. Meta requerida: 90%.',cause:'Personas',riskRef:'R38',crit:'Media',rec:'Completar plan de capacitación con sesiones presenciales antes del go-live en producción.',area:'RRHH / Créditos',due:'2026-07-15',status:'En proceso'},
+  ],
+  auditOpinion:{opinion:'CON OBSERVACIONES',narrative:'El sistema de Scoring Crediticio con IA Generativa presenta controles parcialmente adecuados. Se identificaron 2 hallazgos de criticidad Alta que deben subsanarse antes del paso a producción. Los controles de ciberseguridad y disponibilidad son adecuados y efectivos. Los principales gaps se concentran en gobernanza (ausencia de Model Owner formal), explicabilidad del modelo y cobertura de capacitación. Se recomienda condicionar el go-live a la subsanación de los hallazgos AUD-001 y AUD-002.',auditor:'Roberto Díaz Paredes',cargo:'Auditor Senior — Auditoría Interna',date:TODAY},
+  appetiteThreshold:6,
+};
+
+/* ═══════ PORTFOLIO DE INICIATIVAS IA ═══════ */
+const PORTFOLIO_INITIATIVES=[
+  {id:'AI-001',name:'Sistema de Scoring Crediticio con IA Generativa',
+   type:'Generativo',phase:'Piloto',level:2,budget:'USD 280,000',
+   userArea:'Créditos',techArea:'Tecnología / Data Science',
+   criticality:'Alto',inherentAvg:13.2,residualAvg:9.1,
+   riskCount:16,criticalCount:2,outAppetite:3,
+   status:'Con Retraso',progress:45,
+   startDate:'2026-01-15',targetDate:'2026-08-31',lastEval:'2026-05-19',evaluator:'Prime Consultores',
+   govOpinion:'CONDICIONADO',openFindings:2,provider:'Híbrido',
+   description:'Modelo de scoring para personas naturales usando LLM + datos alternativos',
+   govComments:'Pendiente designación de Model Owner y módulo de explicabilidad. Suspender decisiones autónomas hasta go-live aprobado.'},
+  {id:'AI-002',name:'Chatbot de Atención al Cliente — LLM Conversacional',
+   type:'Generativo',phase:'Producción',level:4,budget:'USD 95,000',
+   userArea:'Atención al Cliente',techArea:'Tecnología / Canales Digitales',
+   criticality:'Medio',inherentAvg:9.8,residualAvg:5.2,
+   riskCount:11,criticalCount:0,outAppetite:0,
+   status:'En Tiempo',progress:88,
+   startDate:'2025-07-01',targetDate:'2025-12-31',lastEval:'2026-03-10',evaluator:'Auditoría Interna',
+   govOpinion:'FAVORABLE',openFindings:0,provider:'Tercero',
+   description:'Asistente conversacional para consultas de productos, saldos y reclamos',
+   govComments:'Controles de sesgo y escalamiento humano implementados. Monitoreo mensual activo.'},
+  {id:'AI-003',name:'Motor de Detección de Fraudes Transaccional',
+   type:'Predictivo',phase:'Producción',level:5,budget:'USD 420,000',
+   userArea:'Operaciones / Prevención de Fraudes',techArea:'Tecnología / Seguridad',
+   criticality:'Crítico',inherentAvg:16.5,residualAvg:8.4,
+   riskCount:18,criticalCount:4,outAppetite:1,
+   status:'En Tiempo',progress:95,
+   startDate:'2024-09-01',targetDate:'2025-06-30',lastEval:'2026-04-22',evaluator:'Gerencia de Riesgos',
+   govOpinion:'FAVORABLE',openFindings:1,provider:'Interno',
+   description:'Modelo ML para detección en tiempo real de transacciones fraudulentas',
+   govComments:'Sistema en producción con monitoreo continuo. Un hallazgo menor en validación de outputs.'},
+  {id:'AI-004',name:'Automatización de Onboarding Digital — Computer Vision',
+   type:'Computer Vision',phase:'Implementación',level:3,budget:'USD 185,000',
+   userArea:'Cumplimiento / KYC',techArea:'Tecnología / Identidad Digital',
+   criticality:'Alto',inherentAvg:14.1,residualAvg:10.3,
+   riskCount:14,criticalCount:2,outAppetite:2,
+   status:'En Riesgo',progress:62,
+   startDate:'2025-11-01',targetDate:'2026-06-30',lastEval:'2026-04-05',evaluator:'Prime Consultores',
+   govOpinion:'CONDICIONADO',openFindings:3,provider:'Tercero',
+   description:'Validación de identidad y documentos KYC usando visión por computadora',
+   govComments:'3 hallazgos de cumplimiento abiertos. Fecha objetivo en riesgo de incumplimiento.'},
+  {id:'AI-005',name:'Motor de Recomendación de Productos Financieros',
+   type:'Predictivo',phase:'Piloto',level:2,budget:'USD 130,000',
+   userArea:'Comercial / Banca Personal',techArea:'Tecnología / Analytics',
+   criticality:'Medio',inherentAvg:10.2,residualAvg:6.8,
+   riskCount:9,criticalCount:0,outAppetite:0,
+   status:'En Tiempo',progress:35,
+   startDate:'2026-03-01',targetDate:'2026-10-31',lastEval:'2026-05-01',evaluator:'Gerencia de Riesgos',
+   govOpinion:'FAVORABLE',openFindings:0,provider:'Interno',
+   description:'Sistema de recomendación personalizada de productos e inversiones para clientes',
+   govComments:'Controles de sesgo en diseño. Sin observaciones a la fecha.'},
+  {id:'AI-006',name:'Asistente IA para Análisis de Riesgo de Mercado',
+   type:'Generativo',phase:'Evaluación',level:1,budget:'USD 200,000',
+   userArea:'Tesorería / Riesgo de Mercado',techArea:'Tecnología / Quant',
+   criticality:'Alto',inherentAvg:12.8,residualAvg:12.8,
+   riskCount:8,criticalCount:1,outAppetite:1,
+   status:'En Tiempo',progress:15,
+   startDate:'2026-04-15',targetDate:'2026-12-31',lastEval:'2026-05-10',evaluator:'Prime Consultores',
+   govOpinion:'PENDIENTE',openFindings:0,provider:'Híbrido',
+   description:'LLM para síntesis de reportes de mercado y análisis de portafolio de inversiones',
+   govComments:'En fase de evaluación. Opinión formal del Comité pendiente para próxima sesión.'},
+  {id:'AI-007',name:'RPA + IA para Procesamiento de Reclamos',
+   type:'NLP',phase:'Producción',level:4,budget:'USD 65,000',
+   userArea:'Operaciones / Back Office',techArea:'Tecnología / RPA',
+   criticality:'Bajo',inherentAvg:7.4,residualAvg:4.1,
+   riskCount:7,criticalCount:0,outAppetite:0,
+   status:'Completado',progress:100,
+   startDate:'2025-02-01',targetDate:'2025-09-30',lastEval:'2025-12-15',evaluator:'Auditoría Interna',
+   govOpinion:'FAVORABLE',openFindings:0,provider:'Interno',
+   description:'Clasificación y enrutamiento automático de reclamos mediante procesamiento de lenguaje natural',
+   govComments:'Sistema implementado y operativo. Sin hallazgos abiertos. Modelo estable.'},
+  {id:'AI-008',name:'Sistema de Selección y Evaluación de Talento',
+   type:'Predictivo',phase:'Suspendido',level:0,budget:'USD 110,000',
+   userArea:'Recursos Humanos',techArea:'Tecnología / HRIS',
+   criticality:'Crítico',inherentAvg:15.3,residualAvg:15.3,
+   riskCount:12,criticalCount:3,outAppetite:3,
+   status:'Suspendido',progress:20,
+   startDate:'2025-08-01',targetDate:'2026-04-30',lastEval:'2026-01-20',evaluator:'Gerencia de Riesgos',
+   govOpinion:'DESFAVORABLE',openFindings:4,provider:'Tercero',
+   description:'Modelo ML para screening de CVs y evaluación predictiva de candidatos',
+   govComments:'SUSPENDIDO por Comité de Gobierno IA. Alto riesgo de sesgo discriminatorio. Requiere rediseño completo con enfoque de IA ética y revisión legal.'},
+];
+
+/* ═══════ CONTEXT & STATE ═══════ */
+const AppCtx=createContext(null);
+const AUDIT_PIN='1234';
+
+const initState={
+  role:'area-usuaria',
+  activeModule:0,
+  unlocked:[true,false,false,false,false,false,true],
+  project:null,
+  risks:RC.map(r=>({...r,applies:false,contextDesc:'',p:0,iF:0,iR:0,iL:0,ctrl:2,strategy:'Mitigar',actions:[],residualObj:'',acceptJust:'',approvalLvl:'Gerencia de Riesgos',approvalName:'',approvalDate:''})),
+  kris:KRI_CAT.map(k=>({...k,active:false,currentVal:'',thG:'',thY:'',thR:'',freq:'Mensual',resp:'',src:'',hist:['','','','','','']})),
+  audit:{unlocked:false,controlEvals:{},findings:[],opinion:'',narrative:'',auditor:'',cargo:'',date:''},
+  appetiteThreshold:6,
+  toasts:[],
+  changeLog:[],
+  demoLoaded:false,
+  showExec:false,
+};
+
+function reducer(state,action){
+  switch(action.type){
+    case 'LOAD_DEMO': return {...state,project:DEMO.project,risks:DEMO.risks,kris:DEMO.kris,
+      audit:{...state.audit,findings:DEMO.auditFindings,opinion:DEMO.auditOpinion.opinion,narrative:DEMO.auditOpinion.narrative,
+        auditor:DEMO.auditOpinion.auditor,cargo:DEMO.auditOpinion.cargo,date:DEMO.auditOpinion.date},
+      appetiteThreshold:DEMO.appetiteThreshold,demoLoaded:true,
+      unlocked:[true,true,true,true,true,true,true]};
+    case 'SET_ROLE': return {...state,role:action.v};
+    case 'SET_MODULE': return {...state,activeModule:action.v};
+    case 'SET_PROJECT': return {...state,project:action.v,unlocked:[true,true,...state.unlocked.slice(2)]};
+    case 'UNLOCK': {const u=[...state.unlocked];u[action.idx]=true;return {...state,unlocked:u};}
+    case 'SET_RISK': {const r=[...state.risks];r[action.idx]={...r[action.idx],...action.v};return {...state,risks:r};}
+    case 'ADD_CUSTOM_RISK': return {...state,risks:[...state.risks,action.v]};
+    case 'SET_KRI': {const k=[...state.kris];k[action.idx]={...k[action.idx],...action.v};return {...state,kris:k};}
+    case 'SET_AUDIT': return {...state,audit:{...state.audit,...action.v}};
+    case 'SET_CTRL_EVAL': return {...state,audit:{...state.audit,controlEvals:{...state.audit.controlEvals,[action.key]:action.v}}};
+    case 'ADD_FINDING': return {...state,audit:{...state.audit,findings:[...state.audit.findings,action.v]}};
+    case 'UPD_FINDING': {const f=[...state.audit.findings];f[action.idx]={...f[action.idx],...action.v};return {...state,audit:{...state.audit,findings:f}};}
+    case 'SET_APPETITE': return {...state,appetiteThreshold:action.v};
+    case 'TOAST': return {...state,toasts:[...state.toasts,{id:Date.now(),...action.v}]};
+    case 'REMOVE_TOAST': return {...state,toasts:state.toasts.filter(t=>t.id!==action.id)};
+    case 'LOAD_STATE': return {...action.v,toasts:[],changeLog:[]};
+    case 'RESET': return {...initState};
+    default: return state;
+  }
+}
+
+/* ═══════ UTILITIES ═══════ */
+function computeResidual(p,iF,iR,iL,ctrl){
+  const imp=Math.max(iF||0,iR||0,iL||0);
+  const inh=(p||0)*imp;
+  const factor=CTRL_LVL[ctrl||0]?.factor||0;
+  return Math.round(inh*(1-factor)*10)/10;
+}
+
+function computeInherent(p,iF,iR,iL){
+  return (p||0)*Math.max(iF||0,iR||0,iL||0);
+}
+
+function maturi(st){
+  const applied=st.risks.filter(r=>r.applies);
+  if(!applied.length) return {score:0,label:'Sin datos'};
+  const ctrlSat=st.audit.findings.length?Math.max(0,(1-st.audit.findings.filter(f=>f.status!=='Cerrado').length/Math.max(1,st.audit.findings.length))):0.5;
+  const kriGreen=st.kris.filter(k=>k.active).length?st.kris.filter(k=>k.active&&k.currentVal!==''&&(k.id==='KRI-10'||k.id==='KRI-03'||k.id==='KRI-09'||k.id==='KRI-12'?parseFloat(k.currentVal)>=(parseFloat(k.thY)||0):parseFloat(k.currentVal)<=(parseFloat(k.thY)||99))).length/Math.max(1,st.kris.filter(k=>k.active).length):0.5;
+  const actDone=applied.reduce((a,r)=>a+r.actions.filter(ac=>ac.status==='Implementado'||ac.status==='Verificado').length,0);
+  const actTotal=applied.reduce((a,r)=>a+r.actions.length,0);
+  const actRatio=actTotal?actDone/actTotal:0.3;
+  const score=Math.round((ctrlSat*35+kriGreen*30+actRatio*35));
+  const labels=['Inicial','En Desarrollo','Definido','Gestionado','Optimizado'];
+  const idx=Math.min(4,Math.floor(score/20));
+  return {score,label:labels[idx]};
+}
+
+/* ═══════ UI COMPONENTS ═══════ */
+function Badge({children,bg='#e5e7eb',color='#374151',size='sm'}){
+  return <span style={{background:bg,color,padding:size==='sm'?'2px 7px':'3px 10px',borderRadius:9999,fontSize:11,fontWeight:700,display:'inline-flex',alignItems:'center',gap:3}}>{children}</span>;
+}
+
+function ToastSystem(){
+  const {state,dispatch}=useContext(AppCtx);
+  useEffect(()=>{
+    if(!state.toasts.length)return;
+    const last=state.toasts[state.toasts.length-1];
+    const t=setTimeout(()=>dispatch({type:'REMOVE_TOAST',id:last.id}),4000);
+    return ()=>clearTimeout(t);
+  },[state.toasts]);
+  return <div style={{position:'fixed',top:16,right:16,zIndex:999,display:'flex',flexDirection:'column',gap:8}}>
+    {state.toasts.map(t=>(
+      <div key={t.id} className="toast-in" style={{background:t.type==='error'?'#dc2626':t.type==='warn'?'#f59e0b':'#1e3a5f',color:'white',padding:'12px 18px',borderRadius:8,boxShadow:'0 4px 20px rgba(0,0,0,.2)',display:'flex',alignItems:'center',gap:10,maxWidth:350,fontSize:13}}>
+        <span style={{fontSize:18}}>{t.type==='error'?'❌':t.type==='warn'?'⚠️':'✅'}</span>
+        <div><div style={{fontWeight:700}}>{t.title}</div>{t.msg&&<div style={{opacity:.9,fontSize:12,marginTop:2}}>{t.msg}</div>}</div>
+        <button onClick={()=>dispatch({type:'REMOVE_TOAST',id:t.id})} style={{marginLeft:'auto',background:'none',border:'none',color:'white',cursor:'pointer',fontSize:16}}>×</button>
+      </div>
+    ))}
+  </div>;
+}
+
+function ConfirmModal({msg,onOk,onCancel}){
+  return <div className="modal-overlay">
+    <div className="modal-box" style={{maxWidth:400}}>
+      <div style={{fontSize:15,marginBottom:20,color:'#374151'}}>{msg}</div>
+      <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+        <button className="btn-s" onClick={onCancel}>Cancelar</button>
+        <button className="btn-d" onClick={onOk}>Confirmar</button>
+      </div>
+    </div>
+  </div>;
+}
+
+function ProgressSteps({current,unlocked}){
+  const steps=['Registro','Identificación','Evaluación','Tratamiento','Monitoreo','Auditoría'];
+  return <div style={{display:'flex',alignItems:'center',gap:0,padding:'12px 0'}}>
+    {steps.map((s,i)=>(
+      <React.Fragment key={i}>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:i===current?'#1e3a5f':unlocked[i]?'#22c55e':'#d1d5db',color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700}}>
+            {unlocked[i]&&i!==current?'✓':i}
+          </div>
+          <span style={{fontSize:10,color:i===current?'#1e3a5f':unlocked[i]?'#16a34a':'#9ca3af',fontWeight:i===current?700:400,whiteSpace:'nowrap'}}>{s}</span>
+        </div>
+        {i<5&&<div style={{flex:1,height:2,background:unlocked[i+1]?'#22c55e':'#e5e7eb',margin:'0 2px',marginBottom:20}}/>}
+      </React.Fragment>
+    ))}
+  </div>;
+}
+
+/* ═══════ HEADER ═══════ */
+function Header(){
+  const {state,dispatch}=useContext(AppCtx);
+  const [showSave,setShowSave]=useState(false);
+  const roleColors={'area-usuaria':'#dbeafe','gerencia-riesgos':'#d1fae5','auditoria':'#ede9fe'};
+  const roleLabels={'area-usuaria':'Área Usuaria','gerencia-riesgos':'Gerencia de Riesgos','auditoria':'Auditoría Interna'};
+  const roleIcons={'area-usuaria':'👤','gerencia-riesgos':'🛡️','auditoria':'🔍'};
+  function saveState(){
+    const json=JSON.stringify(state,null,2);
+    const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(json);a.download='AIRAT_estado.json';a.click();
+    dispatch({type:'TOAST',title:'Estado guardado',msg:'Archivo JSON descargado.',type_:'ok'});
+  }
+  function loadState(e){
+    const file=e.target.files[0];if(!file)return;
+    const r=new FileReader();r.onload=ev=>{
+      try{const v=JSON.parse(ev.target.result);dispatch({type:'LOAD_STATE',v});dispatch({type:'TOAST',title:'Estado restaurado',msg:'Datos cargados exitosamente.'});}
+      catch{dispatch({type:'TOAST',title:'Error',msg:'Archivo JSON inválido.',type:'error'});}
+    };r.readAsText(file);
+  }
+  return <div style={{background:'#1e3a5f',color:'white',padding:'0 20px',display:'flex',alignItems:'center',gap:16,height:58,flexShrink:0}} className="no-print">
+    <div style={{display:'flex',alignItems:'center',gap:10}}>
+      <span style={{fontSize:22}}>🤖</span>
+      <div>
+        <div style={{fontWeight:800,fontSize:15,letterSpacing:.3}}>AIRAT</div>
+        <div style={{fontSize:10,opacity:.7,letterSpacing:.5}}>AI RISK ASSESSMENT TOOL v1.0</div>
+      </div>
+    </div>
+    {state.project&&<div style={{background:'rgba(255,255,255,.12)',borderRadius:6,padding:'4px 12px',fontSize:12,maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+      📋 {state.project.name}
+    </div>}
+    <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,.1)',borderRadius:20,padding:'4px 12px'}}>
+        <span style={{fontSize:14}}>{roleIcons[state.role]}</span>
+        <select value={state.role} onChange={e=>dispatch({type:'SET_ROLE',v:e.target.value})}
+          style={{background:'transparent',border:'none',color:'white',fontWeight:600,fontSize:12,cursor:'pointer',outline:'none'}}>
+          <option value="area-usuaria" style={{color:'#1e3a5f'}}>Área Usuaria</option>
+          <option value="gerencia-riesgos" style={{color:'#1e3a5f'}}>Gerencia de Riesgos</option>
+          <option value="auditoria" style={{color:'#1e3a5f'}}>Auditoría Interna</option>
+        </select>
+      </div>
+      <button onClick={saveState} title="Guardar estado" style={{background:'rgba(255,255,255,.15)',border:'none',color:'white',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:12}}>💾 Guardar</button>
+      <label title="Cargar estado" style={{background:'rgba(255,255,255,.15)',border:'none',color:'white',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:12}}>
+        📂 Cargar<input type="file" accept=".json" onChange={loadState} style={{display:'none'}}/>
+      </label>
+      <button onClick={()=>window.print()} title="Imprimir/PDF" style={{background:'rgba(255,255,255,.15)',border:'none',color:'white',padding:'6px 10px',borderRadius:6,cursor:'pointer',fontSize:12}}>🖨️ PDF</button>
+    </div>
+  </div>;
+}
+
+/* ═══════ SIDEBAR ═══════ */
+function Sidebar(){
+  const {state,dispatch}=useContext(AppCtx);
+  const modules=[
+    {i:0,icon:'📋',label:'Módulo 0 — Registro de Iniciativa'},
+    {i:1,icon:'🔍',label:'Módulo 1 — Identificación de Riesgos'},
+    {i:2,icon:'📊',label:'Módulo 2 — Evaluación de Riesgos'},
+    {i:3,icon:'🛡️',label:'Módulo 3 — Tratamiento y Plan'},
+    {i:4,icon:'📈',label:'Módulo 4 — Monitoreo y KRIs'},
+    {i:5,icon:'🔎',label:'Módulo 5 — Evaluación Auditoría'},
+    {i:6,icon:'🏛️',label:'Portfolio IA — Vista Gobierno'},
+  ];
+  const appliedRisks=state.risks.filter(r=>r.applies);
+  const criticals=appliedRisks.filter(r=>computeInherent(r.p,r.iF,r.iR,r.iL)>=20).length;
+  const outOfAppetite=appliedRisks.filter(r=>computeResidual(r.p,r.iF,r.iR,r.iL,r.ctrl)>state.appetiteThreshold).length;
+  const redKRIs=state.kris.filter(k=>k.active&&k.currentVal!==''&&k.thR!==''&&parseFloat(k.currentVal)>parseFloat(k.thR)).length;
+  const openFindings=state.audit.findings.filter(f=>f.status!=='Cerrado').length;
+  const mat=maturi(state);
+  return <div style={{width:240,background:'white',borderRight:'1px solid #e5e7eb',display:'flex',flexDirection:'column',flexShrink:0}} className="no-print">
+    <div style={{padding:'12px 16px',borderBottom:'1px solid #e5e7eb'}}>
+      <div style={{fontSize:11,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>Navegación</div>
+      {modules.map(m=>(
+        <div key={m.i} onClick={()=>state.unlocked[m.i]&&dispatch({type:'SET_MODULE',v:m.i})}
+          className={`nav-item ${state.activeModule===m.i?'active':''} ${!state.unlocked[m.i]?'locked':''}`}
+          style={{padding:'8px 12px',borderRadius:6,marginBottom:2,fontSize:12,display:'flex',alignItems:'center',gap:8}}>
+          <span>{m.icon}</span>
+          <span style={{lineHeight:1.3}}>{m.label}</span>
+          {!state.unlocked[m.i]&&<span style={{marginLeft:'auto',fontSize:14}}>🔒</span>}
+        </div>
+      ))}
+    </div>
+    <div style={{padding:'12px 16px',borderBottom:'1px solid #e5e7eb'}}>
+      <div style={{fontSize:11,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:10}}>Panel Ejecutivo</div>
+      {[
+        {label:'Riesgos identificados',val:appliedRisks.length,color:'#1e3a5f'},
+        {label:'🔴 Críticos',val:criticals,color:'#dc2626'},
+        {label:'🚨 Fuera de apetito',val:outOfAppetite,color:'#ea580c'},
+        {label:'📊 KRIs en rojo',val:redKRIs,color:'#dc2626'},
+        {label:'📋 Hallazgos abiertos',val:openFindings,color:'#f59e0b'},
+      ].map(item=>(
+        <div key={item.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6,fontSize:12}}>
+          <span style={{color:'#6b7280'}}>{item.label}</span>
+          <span style={{fontWeight:700,color:item.color}}>{item.val}</span>
+        </div>
+      ))}
+      <div style={{marginTop:10,padding:'8px 10px',background:'#f8fafc',borderRadius:6}}>
+        <div style={{fontSize:11,color:'#6b7280',marginBottom:4}}>Madurez de Gobierno IA</div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div className="progress-bar" style={{flex:1}}><div className="progress-fill" style={{width:mat.score+'%',background:mat.score<40?'#ef4444':mat.score<70?'#f59e0b':'#22c55e'}}/></div>
+          <span style={{fontSize:11,fontWeight:700,color:'#1e3a5f',whiteSpace:'nowrap'}}>{mat.label}</span>
+        </div>
+        <div style={{fontSize:10,color:'#9ca3af',marginTop:2}}>{mat.score}/100 puntos</div>
+      </div>
+    </div>
+    <div style={{padding:'12px 16px',fontSize:11,color:'#9ca3af'}}>
+      <div style={{fontWeight:600,color:'#6b7280',marginBottom:6}}>Marcos de Referencia</div>
+      {['ISO/IEC 42001:2023','NIST AI RMF 1.0','EU AI Act 2024','COSO ERM 2017','ISO 31000:2018','Basel III / SR 11-7','SB/BCP Paraguay'].map(m=>(
+        <div key={m} style={{marginBottom:3}}>▸ {m}</div>
+      ))}
+    </div>
+  </div>;
+}
+
+/* ═══════ MÓDULO 0 — REGISTRO ═══════ */
+function Module0(){
+  const {state,dispatch}=useContext(AppCtx);
+  const [form,setForm]=useState(state.project||{
+    name:'',type:'Predictivo',useCase:'',areas:[],provider:'Interno',providerName:'',
+    phase:'Evaluación',respArea:'',respRisk:'',date:TODAY,dataClass:'Internos',hasPersonal:false,
+  });
+  const [err,setErr]=useState({});
+  const areas=['Créditos','Operaciones','Cumplimiento','Tecnología','Tesorería','RRHH','Atención al Cliente','Otro'];
+  function toggleArea(a){setForm(f=>({...f,areas:f.areas.includes(a)?f.areas.filter(x=>x!==a):[...f.areas,a]}));}
+  function validate(){
+    const e={};
+    if(!form.name.trim())e.name='Requerido';
+    if(!form.useCase.trim())e.useCase='Requerido';
+    if(!form.areas.length)e.areas='Seleccione al menos un área';
+    if(!form.respArea.trim())e.respArea='Requerido';
+    if(!form.respRisk.trim())e.respRisk='Requerido';
+    setErr(e);return Object.keys(e).length===0;
+  }
+  function submit(){
+    if(!validate())return;
+    dispatch({type:'SET_PROJECT',v:form});
+    dispatch({type:'UNLOCK',idx:1});
+    dispatch({type:'SET_MODULE',v:1});
+    dispatch({type:'TOAST',title:'Registro completado',msg:'Módulo 1 desbloqueado. Proceda a identificar riesgos.'});
+  }
+  const F=({label,err:e,children,required})=><div style={{marginBottom:14}}>
+    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#374151',marginBottom:4}}>{label}{required&&<span style={{color:'#dc2626'}}>*</span>}</label>
+    {children}
+    {e&&<div style={{color:'#dc2626',fontSize:11,marginTop:3}}>⚠ {e}</div>}
+  </div>;
+  return <div style={{maxWidth:820,margin:'0 auto'}}>
+    <div style={{background:'linear-gradient(135deg,#1e3a5f,#2a5298)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+      <div style={{fontSize:18,fontWeight:800}}>📋 Módulo 0 — Registro de la Iniciativa IA</div>
+      <div style={{fontSize:12,opacity:.8,marginTop:4}}>Complete los datos de cabecera para iniciar la evaluación de riesgos. Todos los campos marcados con * son obligatorios.</div>
+    </div>
+    <div className="card">
+      <div className="stitle">🏢 Datos Generales del Proyecto</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 20px'}}>
+        <F label="Nombre del Proyecto / Solución IA" err={err.name} required>
+          <input className="fi" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Ej. Sistema de Scoring Crediticio con IA"/>
+        </F>
+        <F label="Tipo de IA" required>
+          <select className="fi" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
+            {['Predictivo','Generativo','NLP','Computer Vision','Agéntico','Otro'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </F>
+        <F label="Caso de Uso" err={err.useCase} required>
+          <textarea className="fi" rows={2} value={form.useCase} onChange={e=>setForm(f=>({...f,useCase:e.target.value}))} placeholder="Describa brevemente el uso de IA en este proyecto"/>
+        </F>
+        <div>
+          <F label="Proveedor / Desarrollo" required>
+            <select className="fi" value={form.provider} onChange={e=>setForm(f=>({...f,provider:e.target.value}))}>
+              {['Interno','Tercero','Híbrido'].map(p=><option key={p}>{p}</option>)}
+            </select>
+          </F>
+          {(form.provider==='Tercero'||form.provider==='Híbrido')&&
+            <F label="Nombre del proveedor">
+              <input className="fi" value={form.providerName} onChange={e=>setForm(f=>({...f,providerName:e.target.value}))} placeholder="Nombre del proveedor de IA"/>
+            </F>}
+        </div>
+      </div>
+      <F label="Áreas involucradas" err={err.areas} required>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
+          {areas.map(a=><label key={a} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',background:form.areas.includes(a)?'#dbeafe':'#f3f4f6',padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:form.areas.includes(a)?600:400,border:form.areas.includes(a)?'1.5px solid #1e3a5f':'1.5px solid #e5e7eb',transition:'all .15s'}}>
+            <input type="checkbox" checked={form.areas.includes(a)} onChange={()=>toggleArea(a)} style={{display:'none'}}/>{a}
+          </label>)}
+        </div>
+      </F>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 20px'}}>
+        <F label="Fase del Proyecto" required>
+          <select className="fi" value={form.phase} onChange={e=>setForm(f=>({...f,phase:e.target.value}))}>
+            {['Evaluación','Piloto','Implementación','Producción','Mantenimiento'].map(p=><option key={p}>{p}</option>)}
+          </select>
+        </F>
+        <F label="Fecha de Evaluación" required>
+          <input className="fi" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+        </F>
+        <F label="Responsable del Área Usuaria (nombre + cargo)" err={err.respArea} required>
+          <input className="fi" value={form.respArea} onChange={e=>setForm(f=>({...f,respArea:e.target.value}))} placeholder="Ej. Juan Pérez — Gerente de Créditos"/>
+        </F>
+        <F label="Responsable de Riesgos (nombre + cargo)" err={err.respRisk} required>
+          <input className="fi" value={form.respRisk} onChange={e=>setForm(f=>({...f,respRisk:e.target.value}))} placeholder="Ej. María López — Jefa de Gestión de Riesgos"/>
+        </F>
+        <F label="Clasificación de datos procesados" required>
+          <select className="fi" value={form.dataClass} onChange={e=>setForm(f=>({...f,dataClass:e.target.value}))}>
+            {['Públicos','Internos','Confidenciales','Secretos'].map(c=><option key={c}>{c}</option>)}
+          </select>
+        </F>
+        <F label="¿Procesa datos personales / sensibles?" required>
+          <select className="fi" value={form.hasPersonal?'Si':'No'} onChange={e=>setForm(f=>({...f,hasPersonal:e.target.value==='Si'}))}>
+            <option value="No">No</option><option value="Si">Sí</option>
+          </select>
+        </F>
+      </div>
+      {form.hasPersonal&&<div style={{background:'#fef9c3',border:'1px solid #facc15',borderRadius:8,padding:'12px 16px',marginTop:8,fontSize:13}}>
+        ⚠️ <strong>Alerta GDPR/LOPD:</strong> Este sistema procesa datos personales o sensibles. Asegúrese de contar con base legal, registro de actividades de tratamiento (Art. 30 GDPR), evaluación de impacto (DPIA si aplica) y controles de privacidad por diseño.
+      </div>}
+      <div style={{marginTop:20,display:'flex',justifyContent:'flex-end',gap:12}}>
+        <button className="btn-s" onClick={()=>setForm({name:'',type:'Predictivo',useCase:'',areas:[],provider:'Interno',providerName:'',phase:'Evaluación',respArea:'',respRisk:'',date:TODAY,dataClass:'Internos',hasPersonal:false})}>Limpiar</button>
+        <button className="btn-p" onClick={submit}>✅ INICIAR EVALUACIÓN →</button>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ═══════ MÓDULO 1 — IDENTIFICACIÓN ═══════ */
+function Module1(){
+  const {state,dispatch}=useContext(AppCtx);
+  const [filter,setFilter]=useState('Todos');
+  const [showAddModal,setShowAddModal]=useState(false);
+  const [newRisk,setNewRisk]=useState({d:1,code:'',name:'',desc:''});
+  const [search,setSearch]=useState('');
+  const grouped=DOMAINS.map(dom=>({
+    ...dom,
+    risks:state.risks.filter(r=>r.d===dom.id&&(filter==='Todos'||filter===dom.name)&&
+      (search===''||r.name.toLowerCase().includes(search.toLowerCase())||r.code.toLowerCase().includes(search.toLowerCase())))
+  })).filter(g=>g.risks.length>0);
+  const applied=state.risks.filter(r=>r.applies).length;
+  function toggleApply(idx,val){dispatch({type:'SET_RISK',idx,v:{applies:val}});}
+  function proceed(){
+    if(!applied){dispatch({type:'TOAST',title:'Sin riesgos',msg:'Marque al menos un riesgo como APLICA.',type:'error'});return;}
+    dispatch({type:'UNLOCK',idx:2});dispatch({type:'SET_MODULE',v:2});
+    dispatch({type:'TOAST',title:`${applied} riesgos identificados`,msg:'Módulo 2 desbloqueado para evaluación.'});
+  }
+  function addCustom(){
+    if(!newRisk.code||!newRisk.name){dispatch({type:'TOAST',title:'Error',msg:'Código y nombre son requeridos.',type:'error'});return;}
+    const nextIdx=state.risks.length;
+    dispatch({type:'ADD_CUSTOM_RISK',v:{...newRisk,applies:true,contextDesc:'Riesgo personalizado',p:0,iF:0,iR:0,iL:0,ctrl:2,strategy:'Mitigar',actions:[],residualObj:'',acceptJust:'',approvalLvl:'Gerencia de Riesgos',approvalName:'',approvalDate:''}});
+    setShowAddModal(false);setNewRisk({d:1,code:'',name:'',desc:''});
+    dispatch({type:'TOAST',title:'Riesgo agregado',msg:`${newRisk.code} añadido al catálogo.`});
+  }
+  return <div>
+    {showAddModal&&<div className="modal-overlay">
+      <div className="modal-box">
+        <div style={{fontSize:16,fontWeight:700,color:'#1e3a5f',marginBottom:16}}>➕ Agregar Riesgo Personalizado</div>
+        {[{l:'Dominio',f:'d',type:'select'},{l:'Código (ej. R43)',f:'code'},{l:'Nombre del riesgo',f:'name'},{l:'Descripción',f:'desc',multi:true}].map(({l,f,type,multi})=>(
+          <div key={f} style={{marginBottom:12}}>
+            <label style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>{l}</label>
+            {type==='select'?<select className="fi" value={newRisk[f]} onChange={e=>setNewRisk(n=>({...n,[f]:+e.target.value}))}>
+              {DOMAINS.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>:multi?<textarea className="fi" rows={2} value={newRisk[f]} onChange={e=>setNewRisk(n=>({...n,[f]:e.target.value}))}/>
+            :<input className="fi" value={newRisk[f]} onChange={e=>setNewRisk(n=>({...n,[f]:e.target.value}))}/>}
+          </div>
+        ))}
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:16}}>
+          <button className="btn-s" onClick={()=>setShowAddModal(false)}>Cancelar</button>
+          <button className="btn-p" onClick={addCustom}>Agregar Riesgo</button>
+        </div>
+      </div>
+    </div>}
+    <div style={{background:'linear-gradient(135deg,#1e3a5f,#2a5298)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+      <div style={{fontSize:18,fontWeight:800}}>🔍 Módulo 1 — Identificación de Riesgos IA</div>
+      <div style={{fontSize:12,opacity:.8,marginTop:4}}>Revise el catálogo de 42 riesgos distribuidos en 8 dominios. Marque como APLICA aquellos relevantes para esta iniciativa y añada contexto específico.</div>
+    </div>
+    <div style={{display:'flex',gap:12,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+      <input className="fi" style={{maxWidth:280}} placeholder="🔎 Buscar riesgo..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      <select className="fi" style={{maxWidth:220}} value={filter} onChange={e=>setFilter(e.target.value)}>
+        <option>Todos</option>{DOMAINS.map(d=><option key={d.id}>{d.name}</option>)}
+      </select>
+      <button className="btn-s" style={{whiteSpace:'nowrap'}} onClick={()=>setShowAddModal(true)}>➕ Agregar Riesgo</button>
+      <div style={{marginLeft:'auto',background:'#1e3a5f',color:'white',padding:'6px 16px',borderRadius:20,fontSize:13,fontWeight:700}}>
+        ✅ {applied} / {state.risks.length} riesgos identificados
+      </div>
+    </div>
+    {grouped.map(dom=>(
+      <div key={dom.id} className="card" style={{marginBottom:14}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+          <div style={{width:4,height:24,background:dom.color,borderRadius:2}}/>
+          <div style={{fontSize:14,fontWeight:700,color:'#1e3a5f'}}>Dominio {dom.id} — {dom.name}</div>
+          <Badge bg={dom.color+'22'} color={dom.color}>{dom.risks.filter(r=>r.applies).length}/{dom.risks.length} seleccionados</Badge>
+        </div>
+        <div style={{overflowX:'auto'}}>
+          <table>
+            <thead><tr><th style={{width:40}}>Aplica</th><th style={{width:56}}>Código</th><th>Evento de Riesgo / Riesgo (Exposición Potencial)</th><th style={{width:180}}>Contexto específico</th></tr></thead>
+            <tbody>
+              {dom.risks.map(r=>{
+                const idx=state.risks.findIndex(x=>x.code===r.code&&x.d===r.d);
+                return <tr key={r.code} style={{background:r.applies?'#f0f9ff':'white'}}>
+                  <td style={{textAlign:'center'}}>
+                    <input type="checkbox" checked={r.applies} onChange={e=>toggleApply(idx,e.target.checked)} style={{width:16,height:16,cursor:'pointer'}}/>
+                  </td>
+                  <td><span style={{fontWeight:700,color:dom.color}}>{r.code}</span></td>
+                  <td>
+                    <div style={{fontSize:9,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:1}}>Evento de riesgo</div>
+                    <div style={{fontSize:12,fontWeight:r.applies?700:400,color:'#111827'}}>{r.name}</div>
+                    <div style={{fontSize:9,fontWeight:600,color:'#6366f1',textTransform:'uppercase',letterSpacing:'0.04em',marginTop:5,marginBottom:1}}>Riesgo · Exposición potencial</div>
+                    <div style={{fontSize:11,color:'#374151',lineHeight:1.4}}>{r.desc}</div>
+                  </td>
+                  <td>{r.applies&&<textarea className="fi" style={{fontSize:11,minHeight:48,resize:'vertical'}} rows={2}
+                    placeholder="Contexto específico del riesgo en este proyecto..."
+                    value={r.contextDesc||''} onChange={e=>dispatch({type:'SET_RISK',idx,v:{contextDesc:e.target.value}})}/>}</td>
+                </tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ))}
+    <div style={{display:'flex',justifyContent:'flex-end',marginTop:4}}>
+      <button className="btn-p" onClick={proceed} disabled={!applied}>
+        IR A EVALUACIÓN ({applied} riesgos) →
+      </button>
+    </div>
+  </div>;
+}
+
+/* ═══════ HEAT MAP COMPONENT ═══════ */
+function HeatMap5x5({risks,mode,appetiteThreshold}){
+  const [hovered,setHovered]=useState(null);
+  const SIZE=48,GAP=3,PAD=40;
+  const W=SIZE*5+GAP*4+PAD*2,H=SIZE*5+GAP*4+PAD*2;
+  const lblP=['<5%','5-15%','15-35%','35-60%','>60%'];
+  const lblI=['Muy bajo','Bajo','Medio','Alto','Muy alto'];
+  return <div style={{overflowX:'auto'}}>
+    <svg width={W} height={H+30} style={{fontFamily:'Segoe UI,sans-serif'}}>
+      {/* axis labels */}
+      <text x={PAD+SIZE*2.5+GAP*2} y={H+PAD+14} textAnchor="middle" fontSize={12} fill="#374151" fontWeight={600}>Probabilidad →</text>
+      <text x={12} y={PAD+SIZE*2.5+GAP*2} textAnchor="middle" fontSize={12} fill="#374151" fontWeight={600} transform={`rotate(-90,12,${PAD+SIZE*2.5+GAP*2})`}>Impacto →</text>
+      {/* P labels */}
+      {[1,2,3,4,5].map(p=><text key={p} x={PAD+(p-1)*(SIZE+GAP)+SIZE/2} y={PAD-8} textAnchor="middle" fontSize={10} fill="#6b7280">{p}</text>)}
+      {/* I labels */}
+      {[5,4,3,2,1].map((imp,row)=><text key={imp} x={PAD-8} y={PAD+row*(SIZE+GAP)+SIZE/2+4} textAnchor="end" fontSize={10} fill="#6b7280">{imp}</text>)}
+      {/* cells */}
+      {[5,4,3,2,1].map((imp,row)=>[1,2,3,4,5].map(prob=>{
+        const x=PAD+(prob-1)*(SIZE+GAP),y=PAD+row*(SIZE+GAP);
+        return <rect key={`${prob}-${imp}`} x={x} y={y} width={SIZE} height={SIZE} rx={4}
+          fill={heatColor(prob,imp)} opacity={.75} className="hcell"
+          onMouseEnter={()=>setHovered({p:prob,i:imp})} onMouseLeave={()=>setHovered(null)}/>;
+      }))}
+      {/* risk dots */}
+      {risks.filter(r=>{
+        const p=r.p,imp=mode==='inherent'?Math.max(r.iF||0,r.iR||0,r.iL||0):undefined;
+        const impR=mode==='residual'?Math.max(r.iF||0,r.iR||0,r.iL||0):undefined;
+        return p&&(imp||impR);
+      }).map(r=>{
+        const p=r.p;
+        const rawImp=Math.max(r.iF||0,r.iR||0,r.iL||0);
+        const inherent=p*rawImp;
+        const ctrl=CTRL_LVL[r.ctrl||0]?.factor||0;
+        const residual=Math.round(inherent*(1-ctrl));
+        const usedP=p;
+        const usedI=mode==='residual'?Math.max(1,Math.round(rawImp*(1-ctrl))):rawImp;
+        if(!usedP||!usedI)return null;
+        const cx=PAD+(usedP-1)*(SIZE+GAP)+SIZE/2;
+        const cy=PAD+(5-Math.min(5,Math.max(1,usedI)))*(SIZE+GAP)+SIZE/2;
+        return <g key={r.code}>
+          <circle cx={cx} cy={cy} r={10} fill="white" stroke="#1e3a5f" strokeWidth={2} opacity={.9}
+            onMouseEnter={()=>setHovered({code:r.code,name:r.name,p:usedP,i:usedI,s:usedP*usedI})}
+            onMouseLeave={()=>setHovered(null)}/>
+          <text x={cx} y={cy+4} textAnchor="middle" fontSize={8} fontWeight={700} fill="#1e3a5f">{r.code}</text>
+        </g>;
+      })}
+      {/* tooltip */}
+      {hovered&&hovered.code&&<g>
+        <rect x={PAD} y={H-20} width={W-PAD*2} height={24} rx={4} fill="#1e3a5f" opacity={.9}/>
+        <text x={PAD+8} y={H-3} fontSize={11} fill="white">{hovered.code}: {hovered.name?.substring(0,60)} | P:{hovered.p} × I:{hovered.i} = {hovered.s}</text>
+      </g>}
+      {hovered&&!hovered.code&&<g>
+        <rect x={PAD} y={H-20} width={200} height={22} rx={4} fill="#374151" opacity={.9}/>
+        <text x={PAD+8} y={H-4} fontSize={11} fill="white">P={hovered.p} × I={hovered.i} → Puntuación={hovered.p*hovered.i}</text>
+      </g>}
+    </svg>
+  </div>;
+}
+
+/* ═══════ MÓDULO 2 — EVALUACIÓN ═══════ */
+function Module2(){
+  const {state,dispatch}=useContext(AppCtx);
+  const [heatMode,setHeatMode]=useState('inherent');
+  const applied=state.risks.filter(r=>r.applies);
+  function proceed(){
+    dispatch({type:'UNLOCK',idx:3});dispatch({type:'SET_MODULE',v:3});
+    dispatch({type:'TOAST',title:'Evaluación completada',msg:'Módulo 3 desbloqueado. Defina estrategias de tratamiento.'});
+  }
+  const domainAvg=DOMAINS.map(dom=>{
+    const dr=applied.filter(r=>r.d===dom.id);
+    if(!dr.length)return {name:dom.short,value:0};
+    const avg=dr.reduce((a,r)=>a+computeInherent(r.p,r.iF,r.iR,r.iL),0)/dr.length;
+    return {name:dom.short,value:Math.round(avg*10)/10,fullMark:25};
+  });
+  const stats={
+    total:applied.length,
+    critical:applied.filter(r=>computeInherent(r.p,r.iF,r.iR,r.iL)>=20).length,
+    high:applied.filter(r=>{const s=computeInherent(r.p,r.iF,r.iR,r.iL);return s>=12&&s<20;}).length,
+    moderate:applied.filter(r=>{const s=computeInherent(r.p,r.iF,r.iR,r.iL);return s>=6&&s<12;}).length,
+    low:applied.filter(r=>computeInherent(r.p,r.iF,r.iR,r.iL)<6).length,
+    outOfAppetite:applied.filter(r=>computeResidual(r.p,r.iF,r.iR,r.iL,r.ctrl)>state.appetiteThreshold).length,
+    avgResidual:applied.length?Math.round(applied.reduce((a,r)=>a+computeResidual(r.p,r.iF,r.iR,r.iL,r.ctrl),0)/applied.length*10)/10:0,
+  };
+  function ScaleBtn({val,current,onSet,colors}){
+    const c=colors?.[val]||['#e5e7eb','#374151'];
+    return <button onClick={()=>onSet(val)} style={{width:32,height:32,border:'2px solid '+(val===current?c[0]:'#e5e7eb'),borderRadius:6,background:val===current?c[0]:'white',color:val===current?c[1]:'#374151',fontWeight:700,fontSize:12,cursor:'pointer'}}>{val}</button>;
+  }
+  const pColors={1:['#dcfce7','#166534'],2:['#bbf7d0','#166534'],3:['#fef9c3','#854d0e'],4:['#fed7aa','#9a3412'],5:['#fee2e2','#991b1b']};
+  const iColors={1:['#dcfce7','#166534'],2:['#d1fae5','#065f46'],3:['#fef9c3','#854d0e'],4:['#fed7aa','#9a3412'],5:['#fee2e2','#991b1b']};
+  return <div>
+    <div style={{background:'linear-gradient(135deg,#1e3a5f,#2a5298)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+      <div style={{fontSize:18,fontWeight:800}}>📊 Módulo 2 — Evaluación de Riesgos</div>
+      <div style={{fontSize:12,opacity:.8,marginTop:4}}>Califique probabilidad e impacto para los {applied.length} riesgos identificados. El umbral de apetito actual es {state.appetiteThreshold}.</div>
+    </div>
+    {/* Stats */}
+    <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:10,marginBottom:18}}>
+      {[
+        {l:'Total',v:stats.total,bg:'#f0f4f8',c:'#1e3a5f'},
+        {l:'🔴 Crítico',v:stats.critical,bg:'#fee2e2',c:'#991b1b'},
+        {l:'🟠 Alto',v:stats.high,bg:'#fed7aa',c:'#9a3412'},
+        {l:'🟡 Moderado',v:stats.moderate,bg:'#fef9c3',c:'#854d0e'},
+        {l:'🟢 Bajo',v:stats.low,bg:'#dcfce7',c:'#166534'},
+        {l:'🚨 Fuera apetito',v:stats.outOfAppetite,bg:'#fce7f3',c:'#9d174d'},
+        {l:'Resid. promedio',v:stats.avgResidual,bg:'#ede9fe',c:'#5b21b6'},
+      ].map(s=><div key={s.l} style={{background:s.bg,borderRadius:8,padding:'10px 12px',textAlign:'center'}}>
+        <div style={{fontSize:20,fontWeight:800,color:s.c}}>{s.v}</div>
+        <div style={{fontSize:10,color:s.c,opacity:.8,marginTop:2}}>{s.l}</div>
+      </div>)}
+    </div>
+    {/* Appetite threshold */}
+    <div className="card" style={{marginBottom:16,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+      <span style={{fontSize:13,fontWeight:600,color:'#374151'}}>🎯 Umbral de Apetito de Riesgo:</span>
+      <div style={{display:'flex',gap:6}}>
+        {[2,4,6,8,10,12].map(v=><button key={v} onClick={()=>dispatch({type:'SET_APPETITE',v})}
+          style={{padding:'5px 12px',borderRadius:6,border:'2px solid '+(state.appetiteThreshold===v?'#1e3a5f':'#e5e7eb'),background:state.appetiteThreshold===v?'#1e3a5f':'white',color:state.appetiteThreshold===v?'white':'#374151',fontWeight:700,fontSize:12,cursor:'pointer'}}>{v}</button>)}
+      </div>
+      <span style={{fontSize:12,color:'#6b7280'}}>Riesgo residual {'>'} {state.appetiteThreshold} = Fuera de apetito (requiere acción)</span>
+    </div>
+    {/* Evaluation table */}
+    <div className="card" style={{marginBottom:18}}>
+      <div className="stitle">📋 Matriz de Evaluación Individual</div>
+      <div style={{overflowX:'auto'}}>
+        <table>
+          <thead><tr>
+            <th>Riesgo</th>
+            <th>P<br/><span style={{fontWeight:400,fontSize:10}}>1–5</span></th>
+            <th>I Financiero<br/><span style={{fontWeight:400,fontSize:10}}>1–5</span></th>
+            <th>I Reputacional<br/><span style={{fontWeight:400,fontSize:10}}>1–5</span></th>
+            <th>I Regulatorio<br/><span style={{fontWeight:400,fontSize:10}}>1–5</span></th>
+            <th>Inherente<br/><span style={{fontWeight:400,fontSize:10}}>P×MAX(I)</span></th>
+            <th>Control existente</th>
+            <th>Residual</th>
+            <th style={{width:80}}>vs. Apetito</th>
+          </tr></thead>
+          <tbody>
+            {applied.map(r=>{
+              const idx=state.risks.findIndex(x=>x.code===r.code&&x.d===r.d);
+              const inh=computeInherent(r.p,r.iF,r.iR,r.iL);
+              const res=computeResidual(r.p,r.iF,r.iR,r.iL,r.ctrl);
+              const lvlI=getRiskLvl(inh);
+              const lvlR=getRiskLvl(res);
+              const outApp=res>state.appetiteThreshold;
+              const dom=DOMAINS.find(d=>d.id===r.d);
+              return <tr key={r.code}>
+                <td><div style={{fontWeight:700,color:dom?.color,fontSize:12}}>{r.code}</div>
+                  <div style={{fontSize:11,color:'#374151',lineHeight:1.3}}>{r.name.substring(0,55)}...</div></td>
+                {['p','iF','iR','iL'].map(f=><td key={f} style={{textAlign:'center'}}>
+                  <div style={{display:'flex',gap:2,justifyContent:'center',flexWrap:'wrap'}}>
+                    {[1,2,3,4,5].map(v=><ScaleBtn key={v} val={v} current={r[f]||0} onSet={val=>dispatch({type:'SET_RISK',idx,v:{[f]:val}})} colors={f==='p'?pColors:iColors}/>)}
+                  </div>
+                </td>)}
+                <td style={{textAlign:'center'}}>
+                  <span style={{padding:'3px 10px',borderRadius:6,fontWeight:700,fontSize:14,background:lvlI.bg,color:lvlI.color}}>{inh||'–'}</span>
+                  <div style={{fontSize:10,marginTop:2,color:lvlI.color}}>{inh?lvlI.txt+' '+lvlI.label:''}</div>
+                </td>
+                <td>
+                  <select className="fi" style={{fontSize:11,padding:'4px 6px'}} value={r.ctrl||0}
+                    onChange={e=>dispatch({type:'SET_RISK',idx,v:{ctrl:+e.target.value}})}>
+                    {CTRL_LVL.map((c,i)=><option key={i} value={i}>{c.label} ({Math.round(c.factor*100)}%)</option>)}
+                  </select>
+                </td>
+                <td style={{textAlign:'center'}}>
+                  <span style={{padding:'3px 10px',borderRadius:6,fontWeight:700,fontSize:14,background:lvlR.bg,color:lvlR.color}}>{inh?res:'–'}</span>
+                  <div style={{fontSize:10,marginTop:2,color:lvlR.color}}>{inh?lvlR.txt+' '+lvlR.label:''}</div>
+                </td>
+                <td style={{textAlign:'center'}}>
+                  {inh?<span style={{background:outApp?'#fee2e2':'#dcfce7',color:outApp?'#991b1b':'#166534',padding:'4px 8px',borderRadius:6,fontSize:12,fontWeight:700}}>
+                    {outApp?'⚠ EXCEDE':'✓ OK'}
+                  </span>:'—'}
+                </td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {/* Heat Map + Radar */}
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18,marginBottom:18}}>
+      <div className="card">
+        <div className="stitle">🗺 Mapa de Calor 5×5</div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          {['inherent','residual'].map(m=><button key={m} onClick={()=>setHeatMode(m)}
+            style={{padding:'5px 14px',borderRadius:20,border:'2px solid '+(heatMode===m?'#1e3a5f':'#e5e7eb'),background:heatMode===m?'#1e3a5f':'white',color:heatMode===m?'white':'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+            {m==='inherent'?'Riesgo Inherente':'Riesgo Residual'}
+          </button>)}
+        </div>
+        <HeatMap5x5 risks={applied} mode={heatMode} appetiteThreshold={state.appetiteThreshold}/>
+        <div style={{display:'flex',gap:12,marginTop:8,flexWrap:'wrap',fontSize:11}}>
+          {[{c:'#4ade80',l:'Bajo (1-5)'},{c:'#facc15',l:'Moderado (6-11)'},{c:'#f97316',l:'Alto (12-19)'},{c:'#ef4444',l:'Crítico (20-25)'}].map(x=>(
+            <div key={x.l} style={{display:'flex',alignItems:'center',gap:4}}><div style={{width:12,height:12,background:x.c,borderRadius:2}}/><span style={{color:'#6b7280'}}>{x.l}</span></div>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <div className="stitle">🎯 Radar — Nivel por Dominio</div>
+        <ResponsiveContainer width="100%" height={280}>
+          <RadarChart data={domainAvg}>
+            <PolarGrid stroke="#e5e7eb"/>
+            <PolarAngleAxis dataKey="name" tick={{fontSize:11,fill:'#374151'}}/>
+            <PolarRadiusAxis angle={30} domain={[0,25]} tick={{fontSize:9,fill:'#9ca3af'}}/>
+            <Radar name="Inherente" dataKey="value" stroke="#1e3a5f" fill="#1e3a5f" fillOpacity={0.3}/>
+            <RT formatter={(v)=>[v.toFixed(1),'Nivel promedio']}/>
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+    <div style={{display:'flex',justifyContent:'flex-end'}}>
+      <button className="btn-p" onClick={proceed}>DEFINIR TRATAMIENTOS →</button>
+    </div>
+  </div>;
+}
+
+/* ═══════ MÓDULO 3 — TRATAMIENTO ═══════ */
+function Module3(){
+  const {state,dispatch}=useContext(AppCtx);
+  const applied=state.risks.filter(r=>r.applies&&computeInherent(r.p,r.iF,r.iR,r.iL)>0);
+  const needsTreat=applied.filter(r=>computeResidual(r.p,r.iF,r.iR,r.iL,r.ctrl)>state.appetiteThreshold);
+  function proceed(){
+    dispatch({type:'UNLOCK',idx:4});dispatch({type:'SET_MODULE',v:4});
+    dispatch({type:'TOAST',title:'Tratamiento registrado',msg:'Módulo 4 desbloqueado. Configure los KRIs de monitoreo.'});
+  }
+  function addAction(rIdx){
+    const risk=state.risks[rIdx];
+    dispatch({type:'SET_RISK',idx:rIdx,v:{actions:[...risk.actions,{desc:'',resp:'',due:'',status:'Pendiente'}]}});
+  }
+  function updateAction(rIdx,aIdx,field,val){
+    const risk=state.risks[rIdx];
+    const acts=[...risk.actions];acts[aIdx]={...acts[aIdx],[field]:val};
+    dispatch({type:'SET_RISK',idx:rIdx,v:{actions:acts}});
+  }
+  function removeAction(rIdx,aIdx){
+    const risk=state.risks[rIdx];
+    dispatch({type:'SET_RISK',idx:rIdx,v:{actions:risk.actions.filter((_,i)=>i!==aIdx)}});
+  }
+  const strategies=[
+    {v:'Mitigar',icon:'🛡️',desc:'Implementar controles adicionales'},
+    {v:'Transferir',icon:'🔄',desc:'Seguro, contrato con proveedor'},
+    {v:'Evitar',icon:'🚫',desc:'Descontinuar la funcionalidad'},
+    {v:'Aceptar',icon:'✅',desc:'Aprobación formal requerida'},
+  ];
+  return <div>
+    <div style={{background:'linear-gradient(135deg,#1e3a5f,#2a5298)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+      <div style={{fontSize:18,fontWeight:800}}>🛡️ Módulo 3 — Tratamiento y Plan de Acción</div>
+      <div style={{fontSize:12,opacity:.8,marginTop:4}}>
+        {needsTreat.length} riesgos superan el umbral de apetito ({state.appetiteThreshold}) y requieren tratamiento. Defina estrategia y plan de acción con responsables y fechas.
+      </div>
+    </div>
+    {/* Summary */}
+    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+      {['Mitigar','Transferir','Evitar','Aceptar'].map(s=>{
+        const cnt=applied.filter(r=>r.strategy===s).length;
+        const icons={'Mitigar':'🛡️','Transferir':'🔄','Evitar':'🚫','Aceptar':'✅'};
+        const bgs={'Mitigar':'#dbeafe','Transferir':'#d1fae5','Evitar':'#fee2e2','Aceptar':'#fef9c3'};
+        const cs={'Mitigar':'#1e40af','Transferir':'#065f46','Evitar':'#991b1b','Aceptar':'#854d0e'};
+        return <div key={s} style={{background:bgs[s],borderRadius:8,padding:'12px 16px',textAlign:'center'}}>
+          <div style={{fontSize:22}}>{icons[s]}</div>
+          <div style={{fontSize:18,fontWeight:800,color:cs[s]}}>{cnt}</div>
+          <div style={{fontSize:11,color:cs[s],fontWeight:600}}>{s}</div>
+        </div>;
+      })}
+    </div>
+    {applied.map(r=>{
+      const idx=state.risks.findIndex(x=>x.code===r.code&&x.d===r.d);
+      const inh=computeInherent(r.p,r.iF,r.iR,r.iL);
+      const res=computeResidual(r.p,r.iF,r.iR,r.iL,r.ctrl);
+      const outApp=res>state.appetiteThreshold;
+      const lvlI=getRiskLvl(inh);
+      const dom=DOMAINS.find(d=>d.id===r.d);
+      return <div key={r.code} className="card" style={{marginBottom:14,borderLeft:`4px solid ${outApp?'#dc2626':'#22c55e'}`}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:12,flexWrap:'wrap',marginBottom:14}}>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+              <span style={{fontWeight:800,color:dom?.color,fontSize:13}}>{r.code}</span>
+              <span style={{fontWeight:600,fontSize:13}}>{r.name}</span>
+              {outApp&&<span style={{background:'#fee2e2',color:'#991b1b',padding:'2px 8px',borderRadius:9999,fontSize:10,fontWeight:700}}>⚠ FUERA DE APETITO</span>}
+            </div>
+            <div style={{display:'flex',gap:10,fontSize:12}}>
+              <span>Inherente: <strong style={{color:lvlI.color}}>{inh} ({lvlI.label})</strong></span>
+              <span>Residual: <strong style={{color:getRiskLvl(res).color}}>{res}</strong></span>
+              <span>Diferencia: <strong>{inh-res}</strong> reducción</span>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            {strategies.map(s=><button key={s.v} onClick={()=>dispatch({type:'SET_RISK',idx,v:{strategy:s.v}})}
+              title={s.desc}
+              style={{padding:'5px 10px',borderRadius:6,border:'2px solid '+(r.strategy===s.v?'#1e3a5f':'#e5e7eb'),background:r.strategy===s.v?'#1e3a5f':'white',color:r.strategy===s.v?'white':'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+              {s.icon} {s.v}
+            </button>)}
+          </div>
+        </div>
+        {(r.strategy==='Mitigar'||r.strategy==='Transferir')&&<div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#374151'}}>Plan de Acción</div>
+            <button className="btn-s" style={{fontSize:11,padding:'4px 10px'}} onClick={()=>addAction(idx)}>+ Agregar acción</button>
+          </div>
+          {r.actions.length===0&&<div style={{color:'#9ca3af',fontSize:12,fontStyle:'italic',padding:'8px 0'}}>Sin acciones registradas. Haga clic en "+ Agregar acción".</div>}
+          {r.actions.length>0&&<table style={{marginBottom:8}}>
+            <thead><tr><th>#</th><th>Acción de Control</th><th>Responsable</th><th>Fecha Límite</th><th>Estado</th><th></th></tr></thead>
+            <tbody>{r.actions.map((a,ai)=>(
+              <tr key={ai}>
+                <td style={{textAlign:'center',color:'#6b7280'}}>{ai+1}</td>
+                <td><input className="fi" style={{fontSize:11}} value={a.desc} onChange={e=>updateAction(idx,ai,'desc',e.target.value)} placeholder="Descripción de la acción..."/></td>
+                <td><input className="fi" style={{fontSize:11}} value={a.resp} onChange={e=>updateAction(idx,ai,'resp',e.target.value)} placeholder="Área / Persona"/></td>
+                <td><input className="fi" type="date" style={{fontSize:11}} value={a.due} onChange={e=>updateAction(idx,ai,'due',e.target.value)}/></td>
+                <td>
+                  <select className="fi" style={{fontSize:11}} value={a.status} onChange={e=>updateAction(idx,ai,'status',e.target.value)}>
+                    {['Pendiente','En Progreso','Implementado','Verificado'].map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </td>
+                <td><button onClick={()=>removeAction(idx,ai)} style={{background:'none',border:'none',color:'#dc2626',cursor:'pointer',fontSize:16}}>×</button></td>
+              </tr>
+            ))}</tbody>
+          </table>}
+          <div style={{display:'flex',gap:16,alignItems:'center',marginTop:8}}>
+            <div style={{fontSize:12,fontWeight:600}}>Riesgo Residual Objetivo Post-Tratamiento:</div>
+            <input className="fi" type="number" style={{width:80,fontSize:12}} min={1} max={25} value={r.residualObj}
+              onChange={e=>dispatch({type:'SET_RISK',idx,v:{residualObj:+e.target.value}})}
+              placeholder="1-25"/>
+            {r.residualObj&&r.residualObj>state.appetiteThreshold&&<span style={{color:'#dc2626',fontSize:11}}>⚠ Aún fuera del apetito</span>}
+            {r.residualObj&&r.residualObj<=state.appetiteThreshold&&<span style={{color:'#16a34a',fontSize:11}}>✓ Dentro del apetito</span>}
+          </div>
+        </div>}
+        {r.strategy==='Aceptar'&&<div style={{background:'#fef9c3',borderRadius:8,padding:'12px 16px'}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>✅ Aceptación Formal del Riesgo</div>
+          <textarea className="fi" rows={2} placeholder="Justificación para la aceptación del riesgo..."
+            value={r.acceptJust||''} onChange={e=>dispatch({type:'SET_RISK',idx,v:{acceptJust:e.target.value}})} style={{marginBottom:8}}/>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Nivel de aprobación</label>
+              <select className="fi" style={{fontSize:11}} value={r.approvalLvl||'Gerencia de Riesgos'}
+                onChange={e=>dispatch({type:'SET_RISK',idx,v:{approvalLvl:e.target.value}})}>
+                {['Jefe de Área','Gerente','Gerencia de Riesgos','Directorio'].map(l=><option key={l}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Nombre aprobador</label>
+              <input className="fi" style={{fontSize:11}} value={r.approvalName||''} placeholder="Nombre completo"
+                onChange={e=>dispatch({type:'SET_RISK',idx,v:{approvalName:e.target.value}})}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Fecha de aprobación</label>
+              <input className="fi" type="date" style={{fontSize:11}} value={r.approvalDate||''}
+                onChange={e=>dispatch({type:'SET_RISK',idx,v:{approvalDate:e.target.value}})}/>
+            </div>
+          </div>
+        </div>}
+      </div>;
+    })}
+    <div style={{display:'flex',justifyContent:'flex-end',marginTop:4}}>
+      <button className="btn-p" onClick={proceed}>CONFIGURAR KRIs →</button>
+    </div>
+  </div>;
+}
+
+/* ═══════ MÓDULO 4 — KRIs ═══════ */
+function Module4(){
+  const {state,dispatch}=useContext(AppCtx);
+  const [showAll,setShowAll]=useState(false);
+  function proceed(){
+    dispatch({type:'UNLOCK',idx:5});dispatch({type:'SET_MODULE',v:5});
+    dispatch({type:'TOAST',title:'KRIs configurados',msg:'Módulo 5 desbloqueado. Acceso de Auditoría disponible.'});
+  }
+  function getKriStatus(k){
+    if(!k.active||k.currentVal===''||k.thR===''||k.thG==='')return 'grey';
+    const v=parseFloat(k.currentVal);
+    const r=parseFloat(k.thR),y=parseFloat(k.thY),g=parseFloat(k.thG);
+    const inverted=k.id==='KRI-10'||k.id==='KRI-03'||k.id==='KRI-09'||k.id==='KRI-07'||k.id==='KRI-12'||k.id==='KRI-14';
+    if(inverted){if(v>=g)return 'green';if(v>=y)return 'yellow';return 'red';}
+    if(v<=g)return 'green';if(v<=y)return 'yellow';return 'red';
+  }
+  const activeKris=state.kris.filter(k=>k.active);
+  const redCount=activeKris.filter(k=>getKriStatus(k)==='red').length;
+  function Sparkline({hist}){
+    if(!hist||hist.filter(v=>v!=='').length<2)return <span style={{color:'#9ca3af',fontSize:11}}>Sin datos</span>;
+    const vals=hist.map(Number);const mn=Math.min(...vals),mx=Math.max(...vals);
+    const range=mx-mn||1;
+    const pts=vals.map((v,i)=>`${i*20},${30-((v-mn)/range)*25}`).join(' ');
+    return <svg width={110} height={32} style={{display:'block'}}>
+      <polyline points={pts} fill="none" stroke="#1e3a5f" strokeWidth={1.5}/>
+      {vals.map((v,i)=><circle key={i} cx={i*20} cy={30-((v-mn)/range)*25} r={2.5} fill="#1e3a5f"/>)}
+    </svg>;
+  }
+  return <div>
+    <div style={{background:'linear-gradient(135deg,#1e3a5f,#2a5298)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+      <div style={{fontSize:18,fontWeight:800}}>📈 Módulo 4 — Monitoreo y KRIs</div>
+      <div style={{fontSize:12,opacity:.8,marginTop:4}}>Configure los Indicadores Clave de Riesgo (KRIs) para el monitoreo continuo de la iniciativa IA. {redCount>0&&`⚠️ ${redCount} KRI(s) en zona roja.`}</div>
+    </div>
+    {/* KRI dashboard */}
+    {activeKris.length>0&&<div className="card" style={{marginBottom:16}}>
+      <div className="stitle">📊 Dashboard de KRIs Activos</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10,marginBottom:4}}>
+        {activeKris.map(k=>{
+          const st=getKriStatus(k);
+          const colors={green:'#22c55e',yellow:'#f59e0b',red:'#ef4444',grey:'#9ca3af'};
+          const bgs={green:'#f0fdf4',yellow:'#fefce8',red:'#fef2f2',grey:'#f9fafb'};
+          return <div key={k.id} style={{background:bgs[st],borderRadius:8,padding:'10px 12px',border:`1.5px solid ${colors[st]}30`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
+              <span style={{fontSize:10,fontWeight:700,color:colors[st]}}>{k.id}</span>
+              <div style={{width:12,height:12,borderRadius:'50%',background:colors[st]}}/>
+            </div>
+            <div style={{fontSize:11,fontWeight:600,color:'#1e3a5f',marginBottom:6,lineHeight:1.3}}>{k.name}</div>
+            <div style={{fontSize:18,fontWeight:800,color:colors[st]}}>{k.currentVal!==''?k.currentVal+'  '+k.unit:'—'}</div>
+            <div style={{fontSize:10,color:'#6b7280',marginTop:4}}>🟢≤{k.thG} 🟡≤{k.thY} 🔴&gt;{k.thR}</div>
+            <Sparkline hist={k.hist}/>
+          </div>;
+        })}
+      </div>
+    </div>}
+    {/* KRI Config */}
+    <div className="card" style={{marginBottom:16}}>
+      <div className="stitle">⚙️ Configuración de KRIs</div>
+      <div style={{display:'flex',gap:10,marginBottom:14}}>
+        <button className="btn-s" style={{fontSize:12,padding:'5px 12px'}} onClick={()=>setShowAll(!showAll)}>
+          {showAll?'Mostrar solo activos':'Mostrar todos los KRIs'}
+        </button>
+        <span style={{fontSize:12,color:'#6b7280',alignSelf:'center'}}>{activeKris.length} de {state.kris.length} KRIs activos</span>
+      </div>
+      {state.kris.filter(k=>showAll||k.active).map((k,i)=>{
+        const idx=state.kris.findIndex(x=>x.id===k.id);
+        const st=getKriStatus(k);
+        const colors={green:'#22c55e',yellow:'#f59e0b',red:'#ef4444',grey:'#d1d5db'};
+        return <div key={k.id} style={{borderBottom:'1px solid #e5e7eb',paddingBottom:14,marginBottom:14}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:k.active?10:0}}>
+            <input type="checkbox" checked={k.active} onChange={e=>dispatch({type:'SET_KRI',idx,v:{active:e.target.checked}})} style={{width:16,height:16,cursor:'pointer'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:6,flex:1}}>
+              <span style={{fontWeight:700,color:'#1e3a5f',fontSize:12,width:56}}>{k.id}</span>
+              <span style={{fontSize:11,color:'#374151'}}>{k.name}</span>
+              <span style={{fontSize:10,color:'#9ca3af'}}>({k.dom})</span>
+              {k.active&&<div style={{marginLeft:'auto',width:10,height:10,borderRadius:'50%',background:colors[st]}}/>}
+            </div>
+          </div>
+          {k.active&&<div style={{display:'grid',gridTemplateColumns:'80px 80px 80px 80px 120px 1fr 1fr',gap:8,paddingLeft:26}}>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3}}>Valor actual</label>
+              <input className="fi" style={{fontSize:11}} type="number" value={k.currentVal} onChange={e=>dispatch({type:'SET_KRI',idx,v:{currentVal:e.target.value}})}/></div>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3,color:'#16a34a'}}>Umbral 🟢</label>
+              <input className="fi" style={{fontSize:11}} type="number" value={k.thG} onChange={e=>dispatch({type:'SET_KRI',idx,v:{thG:e.target.value}})}/></div>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3,color:'#ca8a04'}}>Umbral 🟡</label>
+              <input className="fi" style={{fontSize:11}} type="number" value={k.thY} onChange={e=>dispatch({type:'SET_KRI',idx,v:{thY:e.target.value}})}/></div>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3,color:'#dc2626'}}>Umbral 🔴</label>
+              <input className="fi" style={{fontSize:11}} type="number" value={k.thR} onChange={e=>dispatch({type:'SET_KRI',idx,v:{thR:e.target.value}})}/></div>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3}}>Frecuencia</label>
+              <select className="fi" style={{fontSize:11}} value={k.freq} onChange={e=>dispatch({type:'SET_KRI',idx,v:{freq:e.target.value}})}>
+                {['Diaria','Semanal','Mensual','Trimestral'].map(f=><option key={f}>{f}</option>)}
+              </select></div>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3}}>Responsable</label>
+              <input className="fi" style={{fontSize:11}} value={k.resp} onChange={e=>dispatch({type:'SET_KRI',idx,v:{resp:e.target.value}})} placeholder="Área / persona"/></div>
+            <div><label style={{fontSize:10,fontWeight:600,display:'block',marginBottom:3}}>Fuente de datos</label>
+              <input className="fi" style={{fontSize:11}} value={k.src} onChange={e=>dispatch({type:'SET_KRI',idx,v:{src:e.target.value}})} placeholder="Sistema / reporte"/></div>
+          </div>}
+        </div>;
+      })}
+    </div>
+    <div style={{display:'flex',justifyContent:'flex-end'}}>
+      <button className="btn-p" onClick={proceed}>IR A EVALUACIÓN AUDITORÍA →</button>
+    </div>
+  </div>;
+}
+
+/* ═══════ MÓDULO 5 — AUDITORÍA ═══════ */
+function Module5(){
+  const {state,dispatch}=useContext(AppCtx);
+  const [pinInput,setPinInput]=useState('');
+  const [pinError,setPinError]=useState(false);
+  const [newFinding,setNewFinding]=useState({desc:'',cause:'Proceso',riskRef:'',crit:'Alta',rec:'',area:'',due:'',status:'Abierto'});
+  const [showFindingForm,setShowFindingForm]=useState(false);
+  const applied=state.risks.filter(r=>r.applies&&computeInherent(r.p,r.iF,r.iR,r.iL)>0);
+  const allActions=applied.flatMap(r=>r.actions.map(a=>({...a,rCode:r.code,rName:r.name})));
+  function unlock(){
+    if(pinInput===AUDIT_PIN||pinInput===''){
+      dispatch({type:'SET_AUDIT',v:{unlocked:true}});setPinError(false);
+    } else {setPinError(true);}
+  }
+  function ctrlEval(key,field,val){
+    const cur=state.audit.controlEvals[key]||{design:'',effectiveness:'',evidence:'',sample:'',obs:''};
+    dispatch({type:'SET_CTRL_EVAL',key,v:{...cur,[field]:val}});
+  }
+  function getCtrlRating(e){
+    const d=e?.design,ef=e?.effectiveness;
+    if(!d||!ef||ef==='No probado')return null;
+    if(d==='Adecuado'&&ef==='Efectivo')return {label:'SATISFACTORIO',color:'#16a34a',bg:'#dcfce7',icon:'🟢'};
+    if(d==='Inadecuado'||ef==='Inefectivo')return {label:'DEFICIENTE',color:'#dc2626',bg:'#fee2e2',icon:'🔴'};
+    return {label:'NECESITA MEJORA',color:'#d97706',bg:'#fef9c3',icon:'🟡'};
+  }
+  function addFinding(){
+    if(!newFinding.desc||!newFinding.rec){dispatch({type:'TOAST',title:'Error',msg:'Descripción y recomendación requeridas.',type:'error'});return;}
+    const code='AUD-'+(state.audit.findings.length+1).toString().padStart(3,'0');
+    dispatch({type:'ADD_FINDING',v:{...newFinding,code}});
+    setNewFinding({desc:'',cause:'Proceso',riskRef:'',crit:'Alta',rec:'',area:'',due:'',status:'Abierto'});
+    setShowFindingForm(false);
+    dispatch({type:'TOAST',title:'Hallazgo registrado',msg:code+' añadido.'});
+  }
+  function findingDue(due){
+    if(!due)return 'grey';
+    const d=new Date(due),now=new Date();
+    const diff=(d-now)/(1000*60*60*24);
+    if(diff<0)return 'red';if(diff<=15)return 'yellow';return 'green';
+  }
+  const dueColors={green:'#22c55e',yellow:'#f59e0b',red:'#ef4444',grey:'#9ca3af'};
+  const opinionOpts=[
+    {v:'SATISFACTORIO',icon:'🟢',color:'#16a34a',bg:'#f0fdf4'},
+    {v:'CON OBSERVACIONES',icon:'🟡',color:'#d97706',bg:'#fefce8'},
+    {v:'NECESITA MEJORA SIGNIFICATIVA',icon:'🟠',color:'#ea580c',bg:'#fff7ed'},
+    {v:'INSATISFACTORIO',icon:'🔴',color:'#dc2626',bg:'#fef2f2'},
+  ];
+  if(!state.audit.unlocked){
+    return <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:400}}>
+      <div className="card" style={{maxWidth:420,textAlign:'center'}}>
+        <div style={{fontSize:40,marginBottom:16}}>🔐</div>
+        <div style={{fontSize:18,fontWeight:700,color:'#1e3a5f',marginBottom:8}}>Módulo de Auditoría Interna</div>
+        <div style={{fontSize:13,color:'#6b7280',marginBottom:24}}>Acceso restringido. Ingrese el PIN de validación para continuar. (Demo: use <strong>1234</strong> o deje en blanco)</div>
+        <input className="fi" type="password" maxLength={8} placeholder="PIN de auditoría" value={pinInput}
+          onChange={e=>setPinInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&unlock()}
+          style={{textAlign:'center',fontSize:24,letterSpacing:8,marginBottom:8}}/>
+        {pinError&&<div style={{color:'#dc2626',fontSize:12,marginBottom:8}}>⚠ PIN incorrecto. Intente nuevamente.</div>}
+        <button className="btn-p" style={{width:'100%',marginTop:8}} onClick={unlock}>🔓 ACCEDER A AUDITORÍA</button>
+        <div style={{fontSize:11,color:'#9ca3af',marginTop:12}}>PIN de demostración: 1234 | Configurable en producción</div>
+      </div>
+    </div>;
+  }
+  return <div>
+    <div style={{background:'linear-gradient(135deg,#4c1d95,#6d28d9)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+      <div style={{fontSize:18,fontWeight:800}}>🔎 Módulo 5 — Evaluación de Controles | Auditoría Interna</div>
+      <div style={{fontSize:12,opacity:.8,marginTop:4}}>Evalúe el diseño y efectividad operativa de cada control implementado. Emita hallazgos y opinión global de auditoría.</div>
+    </div>
+    {/* Control evaluations */}
+    <div className="card" style={{marginBottom:16}}>
+      <div className="stitle">⚖️ Evaluación de Controles Registrados</div>
+      {allActions.length===0&&<div style={{color:'#9ca3af',fontSize:13,padding:'16px 0'}}>No hay controles/acciones registradas en el Módulo 3. Complete el plan de acción primero.</div>}
+      {allActions.map((a,ai)=>{
+        const key=`${a.rCode}-${ai}`;
+        const e=state.audit.controlEvals[key]||{};
+        const rating=getCtrlRating(e);
+        return <div key={key} style={{borderBottom:'1px solid #e5e7eb',paddingBottom:14,marginBottom:14}}>
+          <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10,flexWrap:'wrap'}}>
+            <Badge bg="#dbeafe" color="#1e40af">{a.rCode}</Badge>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:700}}>{a.desc||'(Sin descripción)'}</div>
+              <div style={{fontSize:11,color:'#6b7280'}}>Responsable: {a.resp||'—'} | Estado actual: {a.status}</div>
+            </div>
+            {rating&&<span style={{background:rating.bg,color:rating.color,padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:700}}>{rating.icon} {rating.label}</span>}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Diseño del Control</label>
+              <select className="fi" style={{fontSize:11}} value={e.design||''} onChange={ev=>ctrlEval(key,'design',ev.target.value)}>
+                <option value="">Seleccionar...</option>
+                <option>Adecuado</option><option>Parcialmente adecuado</option><option>Inadecuado</option>
+              </select>
+              <textarea className="fi" style={{fontSize:10,marginTop:4,minHeight:40}} placeholder="Observaciones sobre el diseño..." value={e.obs||''} onChange={ev=>ctrlEval(key,'obs',ev.target.value)}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Efectividad Operativa</label>
+              <select className="fi" style={{fontSize:11}} value={e.effectiveness||''} onChange={ev=>ctrlEval(key,'effectiveness',ev.target.value)}>
+                <option value="">Seleccionar...</option>
+                <option>Efectivo</option><option>Efectivo con excepciones</option><option>Inefectivo</option><option>No probado</option>
+              </select>
+              <textarea className="fi" style={{fontSize:10,marginTop:4,minHeight:40}} placeholder="Evidencia revisada..." value={e.evidence||''} onChange={ev=>ctrlEval(key,'evidence',ev.target.value)}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Muestra evaluada</label>
+              <input className="fi" style={{fontSize:11}} placeholder="Ej. 50 registros revisados" value={e.sample||''} onChange={ev=>ctrlEval(key,'sample',ev.target.value)}/>
+            </div>
+          </div>
+        </div>;
+      })}
+    </div>
+    {/* Findings */}
+    <div className="card" style={{marginBottom:16}}>
+      <div className="stitle">🚩 Hallazgos de Auditoría</div>
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
+        <button className="btn-s" onClick={()=>setShowFindingForm(!showFindingForm)} style={{fontSize:12}}>
+          {showFindingForm?'Cancelar':'+ Nuevo Hallazgo'}
+        </button>
+      </div>
+      {showFindingForm&&<div style={{background:'#f8fafc',borderRadius:8,padding:'16px',marginBottom:16,border:'1px solid #e5e7eb'}}>
+        <div style={{fontSize:13,fontWeight:700,color:'#1e3a5f',marginBottom:12}}>Registrar Nuevo Hallazgo</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Descripción del hallazgo *</label>
+            <textarea className="fi" rows={2} value={newFinding.desc} onChange={e=>setNewFinding(f=>({...f,desc:e.target.value}))} placeholder="Describa el hallazgo de manera clara y objetiva..."/>
+          </div>
+          {[{l:'Causa raíz',f:'cause',type:'select',opts:['Personas','Proceso','Tecnología','Gobierno']},
+            {l:'Riesgo asociado',f:'riskRef',type:'select',opts:[''].concat(applied.map(r=>r.code))},
+            {l:'Criticidad',f:'crit',type:'select',opts:['Alta','Media','Baja']},
+            {l:'Área responsable',f:'area',type:'text',placeholder:'Área que debe subsanar'},
+            {l:'Fecha límite',f:'due',type:'date'},
+            {l:'Estado',f:'status',type:'select',opts:['Abierto','En proceso','Cerrado','Vencido']},
+          ].map(({l,f,type,opts,placeholder})=>(
+            <div key={f}>
+              <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>{l}</label>
+              {type==='select'?<select className="fi" style={{fontSize:11}} value={newFinding[f]} onChange={e=>setNewFinding(n=>({...n,[f]:e.target.value}))}>
+                {opts.map(o=><option key={o}>{o}</option>)}
+              </select>:type==='date'?<input className="fi" type="date" style={{fontSize:11}} value={newFinding[f]} onChange={e=>setNewFinding(n=>({...n,[f]:e.target.value}))}/>
+              :<input className="fi" style={{fontSize:11}} placeholder={placeholder} value={newFinding[f]} onChange={e=>setNewFinding(n=>({...n,[f]:e.target.value}))}/>}
+            </div>
+          ))}
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Recomendación *</label>
+            <textarea className="fi" rows={2} value={newFinding.rec} onChange={e=>setNewFinding(f=>({...f,rec:e.target.value}))} placeholder="Describa la acción recomendada para subsanar el hallazgo..."/>
+          </div>
+        </div>
+        <div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}>
+          <button className="btn-p" onClick={addFinding}>Registrar Hallazgo</button>
+        </div>
+      </div>}
+      {state.audit.findings.length===0&&!showFindingForm&&<div style={{color:'#9ca3af',fontSize:13,padding:'16px 0'}}>Sin hallazgos registrados.</div>}
+      {state.audit.findings.length>0&&<div style={{overflowX:'auto'}}>
+        <table>
+          <thead><tr><th>Código</th><th>Descripción</th><th>Causa</th><th>Riesgo</th><th>Criticidad</th><th>Área</th><th>Fecha límite</th><th>Estado</th></tr></thead>
+          <tbody>{state.audit.findings.map((f,fi)=>{
+            const dc=findingDue(f.due);
+            const critColors={Alta:'#fee2e2',Media:'#fef9c3',Baja:'#dcfce7'};
+            return <tr key={fi}>
+              <td><strong style={{color:'#6d28d9'}}>{f.code}</strong></td>
+              <td style={{maxWidth:200}}><div style={{fontSize:11,lineHeight:1.4}}>{f.desc}</div>
+                <div style={{fontSize:10,color:'#6b7280',marginTop:2}}><em>Rec: {f.rec}</em></div></td>
+              <td><Badge bg="#e0e7ff" color="#3730a3">{f.cause}</Badge></td>
+              <td style={{fontWeight:700,color:'#1e3a5f'}}>{f.riskRef}</td>
+              <td><span style={{background:critColors[f.crit],padding:'2px 8px',borderRadius:9999,fontSize:11,fontWeight:700}}>{f.crit}</span></td>
+              <td style={{fontSize:11}}>{f.area}</td>
+              <td style={{textAlign:'center'}}><span style={{display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:dueColors[dc]}}/>{f.due||'—'}
+              </span></td>
+              <td>
+                <select style={{fontSize:11,border:'1px solid #d1d5db',borderRadius:4,padding:'3px 6px',width:'100%'}}
+                  value={f.status} onChange={e=>dispatch({type:'UPD_FINDING',idx:fi,v:{status:e.target.value}})}>
+                  {['Abierto','En proceso','Cerrado','Vencido'].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>}
+    </div>
+    {/* Opinion */}
+    <div className="card" style={{marginBottom:16}}>
+      <div className="stitle">📜 Opinión de Auditoría</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:16}}>
+        {opinionOpts.map(o=><button key={o.v} onClick={()=>dispatch({type:'SET_AUDIT',v:{opinion:o.v}})}
+          style={{padding:'12px 16px',borderRadius:8,border:`2px solid ${state.audit.opinion===o.v?o.color:'#e5e7eb'}`,background:state.audit.opinion===o.v?o.bg:'white',cursor:'pointer',textAlign:'left'}}>
+          <div style={{fontSize:16,marginBottom:4}}>{o.icon}</div>
+          <div style={{fontSize:12,fontWeight:700,color:o.color}}>{o.v}</div>
+        </button>)}
+      </div>
+      <div style={{marginBottom:12}}>
+        <label style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Párrafo de opinión narrativa</label>
+        <textarea className="fi" rows={4} value={state.audit.narrative||''} onChange={e=>dispatch({type:'SET_AUDIT',v:{narrative:e.target.value}})}
+          placeholder="Redacte aquí la opinión de auditoría con el detalle de hallazgos y conclusiones..."/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+        <div><label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Auditor responsable</label>
+          <input className="fi" style={{fontSize:11}} value={state.audit.auditor||''} onChange={e=>dispatch({type:'SET_AUDIT',v:{auditor:e.target.value}})} placeholder="Nombre completo"/></div>
+        <div><label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Cargo</label>
+          <input className="fi" style={{fontSize:11}} value={state.audit.cargo||''} onChange={e=>dispatch({type:'SET_AUDIT',v:{cargo:e.target.value}})} placeholder="Cargo del auditor"/></div>
+        <div><label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:3}}>Fecha de la opinión</label>
+          <input className="fi" type="date" style={{fontSize:11}} value={state.audit.date||''} onChange={e=>dispatch({type:'SET_AUDIT',v:{date:e.target.value}})}/></div>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ═══════ MODULE 6 — PORTFOLIO IA / VISTA GOBIERNO ═══════ */
+function Module6(){
+  const [view,setView]=useState('tabla');
+  const [sort,setSort]=useState({col:'id',dir:1});
+  const [sel,setSel]=useState(null);
+  const [filters,setFilters]=useState({type:'',phase:'',crit:'',area:'',status:'',gov:''});
+
+  const P=PORTFOLIO_INITIATIVES;
+
+  // Filter
+  const filtered=P.filter(d=>{
+    if(filters.type&&d.type!==filters.type)return false;
+    if(filters.phase&&d.phase!==filters.phase)return false;
+    if(filters.crit&&d.criticality!==filters.crit)return false;
+    if(filters.area&&d.userArea!==filters.area)return false;
+    if(filters.status&&d.status!==filters.status)return false;
+    if(filters.gov&&d.govOpinion!==filters.gov)return false;
+    return true;
+  });
+
+  // Sort
+  const sorted=[...filtered].sort((a,b)=>{
+    const va=a[sort.col],vb=b[sort.col];
+    if(typeof va==='number')return sort.dir*(va-vb);
+    return sort.dir*String(va).localeCompare(String(vb),'es');
+  });
+
+  function toggleSort(col){setSort(s=>({col,dir:s.col===col?-s.dir:1}));}
+
+  // KPIs (always from full set)
+  const total=P.length;
+  const favorable=P.filter(d=>d.govOpinion==='FAVORABLE').length;
+  const condicionado=P.filter(d=>d.govOpinion==='CONDICIONADO').length;
+  const desfavorable=P.filter(d=>d.govOpinion==='DESFAVORABLE').length;
+  const criticos=P.filter(d=>d.criticality==='Crítico').length;
+  const atRisk=P.filter(d=>d.status==='Con Retraso'||d.status==='Suspendido'||d.status==='Detenido').length;
+  const totalFindings=P.reduce((s,d)=>s+d.openFindings,0);
+  const totalOOA=P.reduce((s,d)=>s+d.outAppetite,0);
+  const avgProgress=Math.round(P.reduce((s,d)=>s+(d.progress||0),0)/total);
+
+  // Unique option lists
+  const uTypes=[...new Set(P.map(d=>d.type))].sort();
+  const uPhases=[...new Set(P.map(d=>d.phase))].sort();
+  const uCrits=['Crítico','Alto','Medio','Bajo'];
+  const uAreas=[...new Set(P.map(d=>d.userArea))].sort();
+  const uStatus=[...new Set(P.map(d=>d.status))].sort();
+  const uGov=['FAVORABLE','CONDICIONADO','DESFAVORABLE','PENDIENTE'];
+
+  // Colors helpers
+  function govStyle(op){
+    if(op==='FAVORABLE')return{bg:'#dcfce7',color:'#15803d',border:'#86efac'};
+    if(op==='CONDICIONADO')return{bg:'#fef3c7',color:'#92400e',border:'#fcd34d'};
+    if(op==='DESFAVORABLE')return{bg:'#fee2e2',color:'#dc2626',border:'#fca5a5'};
+    return{bg:'#f3f4f6',color:'#6b7280',border:'#d1d5db'};
+  }
+  function critStyle(c){
+    if(c==='Crítico')return{bg:'#fee2e2',color:'#dc2626'};
+    if(c==='Alto')return{bg:'#fff7ed',color:'#c2410c'};
+    if(c==='Medio')return{bg:'#fefce8',color:'#a16207'};
+    return{bg:'#f0fdf4',color:'#15803d'};
+  }
+  function statusIcon(s){
+    if(s==='Completado')return{icon:'✅',color:'#15803d'};
+    if(s==='En Tiempo')return{icon:'🟢',color:'#15803d'};
+    if(s==='Con Retraso')return{icon:'🔴',color:'#dc2626'};
+    if(s==='Suspendido')return{icon:'⛔',color:'#7c3aed'};
+    if(s==='Detenido')return{icon:'🟠',color:'#c2410c'};
+    return{icon:'⚪',color:'#6b7280'};
+  }
+  function phaseColor(ph){
+    if(ph==='Producción')return'#0369a1';
+    if(ph==='Piloto')return'#7c3aed';
+    if(ph==='Desarrollo')return'#0891b2';
+    if(ph==='Suspendido')return'#6b7280';
+    return'#374151';
+  }
+
+  // Matrix data: Criticality × Phase
+  const matrixCrits=['Crítico','Alto','Medio','Bajo'];
+  const matrixPhases=['Producción','Piloto','Desarrollo','Suspendido'];
+  function matrixCell(c,ph){return P.filter(d=>d.criticality===c&&d.phase===ph);}
+
+  // Simple inline bar chart helper (pure CSS, no lib)
+  function MiniBar({label,count,max,color}){
+    const pct=max>0?Math.round((count/max)*100):0;
+    return <div style={{marginBottom:6}}>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:2}}>
+        <span style={{color:'#374151',fontWeight:500}}>{label}</span>
+        <span style={{fontWeight:700,color}}>{count}</span>
+      </div>
+      <div style={{height:8,background:'#e5e7eb',borderRadius:4,overflow:'hidden'}}>
+        <div style={{height:'100%',width:pct+'%',background:color,borderRadius:4,transition:'width .4s'}}/>
+      </div>
+    </div>;
+  }
+
+  // KPI Card component
+  function KpiCard({label,value,sub,color,bg,icon}){
+    return <div style={{background:bg||'#fff',borderRadius:10,padding:'14px 16px',borderTop:`3px solid ${color}`,boxShadow:'0 1px 4px rgba(0,0,0,.08)',flex:1,minWidth:110}}>
+      <div style={{fontSize:22,marginBottom:2}}>{icon}</div>
+      <div style={{fontSize:24,fontWeight:800,color}}>{value}</div>
+      <div style={{fontSize:11,fontWeight:600,color:'#374151',lineHeight:1.3}}>{label}</div>
+      {sub&&<div style={{fontSize:10,color:'#9ca3af',marginTop:2}}>{sub}</div>}
+    </div>;
+  }
+
+  // Executive summary text
+  const suspendidas=P.filter(d=>d.govOpinion==='DESFAVORABLE').length;
+  function execSummary(){
+    const lines=[];
+    lines.push(`El Portfolio de Iniciativas IA comprende ${total} proyectos activos con un avance promedio del ${avgProgress}% al ${new Date().toLocaleDateString('es-PY',{day:'2-digit',month:'long',year:'numeric'})}.`);
+    if(desfavorable>0)lines.push(`⚠️ ${desfavorable} iniciativa(s) con opinión DESFAVORABLE del Comité requieren atención inmediata.`);
+    if(condicionado>0)lines.push(`🟡 ${condicionado} iniciativa(s) CONDICIONADAS con compromisos pendientes de seguimiento.`);
+    if(atRisk>0)lines.push(`🔴 ${atRisk} iniciativa(s) presentan desviaciones de cronograma o están suspendidas.`);
+    if(totalFindings>0)lines.push(`📋 Total de hallazgos abiertos en el portfolio: ${totalFindings}. Requieren plan de cierre documentado.`);
+    if(totalOOA>0)lines.push(`🚨 ${totalOOA} riesgo(s) fuera de apetito consolidados en el portfolio. Escalar a Directorio si persisten.`);
+    lines.push(`${favorable} iniciativa(s) cuentan con opinión FAVORABLE del Comité de Gobierno IA. Se recomienda continuar monitoreo trimestral.`);
+    return lines;
+  }
+
+  // Detail modal for initiative
+  function DetailModal({d,onClose}){
+    const gs=govStyle(d.govOpinion);
+    const cs=critStyle(d.criticality);
+    const si=statusIcon(d.status);
+    return <div className="modal-overlay" style={{zIndex:300}} onClick={onClose}>
+      <div style={{background:'white',borderRadius:14,padding:0,maxWidth:700,width:'95%',maxHeight:'88vh',overflowY:'auto',boxShadow:'0 24px 80px rgba(0,0,0,.22)'}} onClick={e=>e.stopPropagation()}>
+        {/* Modal header */}
+        <div style={{background:'linear-gradient(135deg,#1a3256,#2a5298)',color:'white',padding:'18px 24px',borderRadius:'14px 14px 0 0',position:'sticky',top:0,zIndex:1}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+            <div>
+              <div style={{fontSize:11,opacity:.7,marginBottom:3}}>{d.id} · {d.type}</div>
+              <div style={{fontSize:16,fontWeight:800,lineHeight:1.3}}>{d.name}</div>
+            </div>
+            <button onClick={onClose} style={{background:'rgba(255,255,255,.15)',border:'none',color:'white',width:28,height:28,borderRadius:'50%',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginLeft:12}}>×</button>
+          </div>
+        </div>
+        <div style={{padding:'20px 24px'}}>
+          {/* Status row */}
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
+            <span style={{background:gs.bg,color:gs.color,border:`1px solid ${gs.border}`,padding:'3px 10px',borderRadius:6,fontSize:12,fontWeight:700}}>{d.govOpinion}</span>
+            <span style={{background:cs.bg,color:cs.color,padding:'3px 10px',borderRadius:6,fontSize:12,fontWeight:700}}>⚡ {d.criticality}</span>
+            <span style={{fontSize:12,color:si.color,fontWeight:600}}>{si.icon} {d.status}</span>
+            <span style={{background:'#f0f4f8',color:'#374151',padding:'3px 10px',borderRadius:6,fontSize:12,fontWeight:600}}>📊 Fase: {d.phase}</span>
+            <span style={{background:'#f0f4f8',color:'#374151',padding:'3px 10px',borderRadius:6,fontSize:12,fontWeight:600}}>Nivel {d.level}</span>
+          </div>
+          {/* Progress */}
+          <div style={{marginBottom:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:600,marginBottom:4}}>
+              <span>Avance del proyecto</span><span style={{color:'#1e3a5f'}}>{d.progress}%</span>
+            </div>
+            <div className="progress-bar"><div className="progress-fill" style={{width:d.progress+'%',background:d.progress>=80?'#22c55e':d.progress>=50?'#f59e0b':'#ef4444'}}/></div>
+          </div>
+          {/* Info grid */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+            <div style={{background:'#f8fafc',borderRadius:8,padding:'10px 14px'}}>
+              <div style={{fontSize:10,color:'#9ca3af',fontWeight:600,textTransform:'uppercase',marginBottom:6}}>Organización</div>
+              <div style={{fontSize:12,marginBottom:4}}><span style={{color:'#6b7280'}}>Área Usuaria:</span> <strong>{d.userArea}</strong></div>
+              <div style={{fontSize:12,marginBottom:4}}><span style={{color:'#6b7280'}}>Área Técnica:</span> <strong>{d.techArea}</strong></div>
+              <div style={{fontSize:12,marginBottom:4}}><span style={{color:'#6b7280'}}>Proveedor:</span> <strong>{d.provider}</strong></div>
+              <div style={{fontSize:12}}><span style={{color:'#6b7280'}}>Presupuesto:</span> <strong>{d.budget}</strong></div>
+            </div>
+            <div style={{background:'#f8fafc',borderRadius:8,padding:'10px 14px'}}>
+              <div style={{fontSize:10,color:'#9ca3af',fontWeight:600,textTransform:'uppercase',marginBottom:6}}>Cronograma</div>
+              <div style={{fontSize:12,marginBottom:4}}><span style={{color:'#6b7280'}}>Inicio:</span> <strong>{d.startDate}</strong></div>
+              <div style={{fontSize:12,marginBottom:4}}><span style={{color:'#6b7280'}}>Fecha objetivo:</span> <strong>{d.targetDate}</strong></div>
+              <div style={{fontSize:12,marginBottom:4}}><span style={{color:'#6b7280'}}>Última eval.:</span> <strong>{d.lastEval}</strong></div>
+              <div style={{fontSize:12}}><span style={{color:'#6b7280'}}>Evaluador:</span> <strong>{d.evaluator}</strong></div>
+            </div>
+          </div>
+          {/* Risk metrics */}
+          <div style={{background:'#f8fafc',borderRadius:8,padding:'12px 14px',marginBottom:16}}>
+            <div style={{fontSize:10,color:'#9ca3af',fontWeight:600,textTransform:'uppercase',marginBottom:8}}>Perfil de Riesgo</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+              {[['Total riesgos',d.riskCount,'#374151'],['Riesgos críticos',d.criticalCount,'#dc2626'],['Fuera de apetito',d.outAppetite,'#f59e0b'],['Hallazgos abiertos',d.openFindings,'#7c3aed']].map(([l,v,c])=>
+                <div key={l} style={{textAlign:'center',padding:8,background:'white',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,.06)'}}>
+                  <div style={{fontSize:20,fontWeight:800,color:c}}>{v}</div>
+                  <div style={{fontSize:9,color:'#9ca3af',fontWeight:600,lineHeight:1.2}}>{l}</div>
+                </div>
+              )}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:8}}>
+              <div style={{fontSize:11,padding:'6px 10px',background:'white',borderRadius:6}}>
+                <span style={{color:'#6b7280'}}>Score Inherente prom.:</span> <strong style={{color:'#dc2626'}}>{d.inherentAvg}</strong>
+              </div>
+              <div style={{fontSize:11,padding:'6px 10px',background:'white',borderRadius:6}}>
+                <span style={{color:'#6b7280'}}>Score Residual prom.:</span> <strong style={{color:'#f59e0b'}}>{d.residualAvg}</strong>
+              </div>
+            </div>
+          </div>
+          {/* Description */}
+          {d.description&&<div style={{marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:'#374151',marginBottom:4}}>📄 Descripción</div>
+            <div style={{fontSize:12,color:'#6b7280',lineHeight:1.6,background:'#f8fafc',padding:'10px 14px',borderRadius:8}}>{d.description}</div>
+          </div>}
+          {/* Gov comments */}
+          {d.govComments&&<div style={{borderLeft:'3px solid',borderColor:d.govOpinion==='FAVORABLE'?'#22c55e':d.govOpinion==='CONDICIONADO'?'#f59e0b':'#ef4444',paddingLeft:12,background:d.govOpinion==='FAVORABLE'?'#f0fdf4':d.govOpinion==='CONDICIONADO'?'#fffbeb':'#fef2f2',borderRadius:'0 8px 8px 0',padding:'10px 14px 10px 14px'}}>
+            <div style={{fontSize:11,fontWeight:700,color:'#374151',marginBottom:4}}>🏛️ Comentarios del Comité de Gobierno IA</div>
+            <div style={{fontSize:12,lineHeight:1.6,color:'#374151'}}>{d.govComments}</div>
+          </div>}
+        </div>
+      </div>
+    </div>;
+  }
+
+  // ─── TABLE VIEW ───
+  function TableView(){
+    const cols=[
+      {col:'id',label:'ID'},
+      {col:'name',label:'Iniciativa'},
+      {col:'type',label:'Tipo'},
+      {col:'phase',label:'Fase'},
+      {col:'criticality',label:'Criticidad'},
+      {col:'userArea',label:'Área Usuaria'},
+      {col:'techArea',label:'Área Técnica'},
+      {col:'progress',label:'Avance'},
+      {col:'residualAvg',label:'Score Residual'},
+      {col:'outAppetite',label:'Fuera Apetito'},
+      {col:'openFindings',label:'Hallazgos'},
+      {col:'status',label:'Estado'},
+      {col:'govOpinion',label:'Opinión Gov.'},
+    ];
+    return <div style={{overflowX:'auto'}}>
+      <table>
+        <thead>
+          <tr>{cols.map(c=><th key={c.col} onClick={()=>toggleSort(c.col)} style={{cursor:'pointer',userSelect:'none',whiteSpace:'nowrap'}}>
+            {c.label}{sort.col===c.col?(sort.dir===1?' ▲':' ▼'):''}
+          </th>)}</tr>
+        </thead>
+        <tbody>
+          {sorted.map(d=>{
+            const gs=govStyle(d.govOpinion);
+            const cs=critStyle(d.criticality);
+            const si=statusIcon(d.status);
+            return <tr key={d.id} onClick={()=>setSel(d)} style={{cursor:'pointer'}}>
+              <td style={{fontWeight:700,color:'#1e3a5f',fontSize:12}}>{d.id}</td>
+              <td style={{maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:600,fontSize:12}}>{d.name}</td>
+              <td><span style={{background:'#eff6ff',color:'#1d4ed8',padding:'2px 7px',borderRadius:4,fontSize:11,fontWeight:600}}>{d.type}</span></td>
+              <td><span style={{color:phaseColor(d.phase),fontWeight:700,fontSize:11}}>● {d.phase}</span></td>
+              <td><span className="badge" style={{background:cs.bg,color:cs.color,fontSize:11}}>{d.criticality}</span></td>
+              <td style={{fontSize:11}}>{d.userArea}</td>
+              <td style={{fontSize:11,color:'#6b7280'}}>{d.techArea}</td>
+              <td style={{minWidth:90}}>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <div style={{flex:1,height:6,background:'#e5e7eb',borderRadius:3,overflow:'hidden'}}>
+                    <div style={{height:'100%',width:d.progress+'%',background:d.progress>=80?'#22c55e':d.progress>=50?'#f59e0b':'#ef4444',borderRadius:3}}/>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,minWidth:28}}>{d.progress}%</span>
+                </div>
+              </td>
+              <td style={{textAlign:'center',fontWeight:700,color:d.residualAvg>6?'#dc2626':d.residualAvg>3?'#f59e0b':'#16a34a'}}>{d.residualAvg}</td>
+              <td style={{textAlign:'center',fontWeight:700,color:d.outAppetite>0?'#dc2626':'#16a34a'}}>{d.outAppetite}</td>
+              <td style={{textAlign:'center',fontWeight:700,color:d.openFindings>0?'#7c3aed':'#16a34a'}}>{d.openFindings}</td>
+              <td style={{fontSize:11,fontWeight:600,color:si.color,whiteSpace:'nowrap'}}>{si.icon} {d.status}</td>
+              <td><span style={{background:gs.bg,color:gs.color,border:`1px solid ${gs.border}`,padding:'2px 8px',borderRadius:4,fontSize:10,fontWeight:700}}>{d.govOpinion}</span></td>
+            </tr>;
+          })}
+        </tbody>
+      </table>
+      {sorted.length===0&&<div style={{textAlign:'center',padding:32,color:'#9ca3af',fontSize:13}}>No hay iniciativas que coincidan con los filtros aplicados.</div>}
+    </div>;
+  }
+
+  // ─── CARDS VIEW ───
+  function CardsView(){
+    return <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16}}>
+      {sorted.map(d=>{
+        const gs=govStyle(d.govOpinion);
+        const cs=critStyle(d.criticality);
+        const si=statusIcon(d.status);
+        return <div key={d.id} onClick={()=>setSel(d)} style={{background:'white',borderRadius:10,boxShadow:'0 1px 4px rgba(0,0,0,.08)',overflow:'hidden',cursor:'pointer',transition:'box-shadow .2s,transform .2s'}}
+          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';e.currentTarget.style.transform='translateY(-2px)';}}
+          onMouseLeave={e=>{e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';e.currentTarget.style.transform='translateY(0)';}}>
+          {/* Card top stripe */}
+          <div style={{height:4,background:d.govOpinion==='FAVORABLE'?'#22c55e':d.govOpinion==='CONDICIONADO'?'#f59e0b':d.govOpinion==='DESFAVORABLE'?'#ef4444':'#d1d5db'}}/>
+          <div style={{padding:'14px 16px'}}>
+            {/* ID + badges */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+              <div>
+                <span style={{fontSize:10,fontWeight:700,color:'#9ca3af'}}>{d.id}</span>
+                <div style={{display:'flex',gap:5,marginTop:3,flexWrap:'wrap'}}>
+                  <span style={{background:'#eff6ff',color:'#1d4ed8',padding:'1px 6px',borderRadius:4,fontSize:10,fontWeight:600}}>{d.type}</span>
+                  <span style={{color:phaseColor(d.phase),fontSize:10,fontWeight:700}}>● {d.phase}</span>
+                </div>
+              </div>
+              <span style={{background:gs.bg,color:gs.color,border:`1px solid ${gs.border}`,padding:'3px 8px',borderRadius:5,fontSize:10,fontWeight:800,whiteSpace:'nowrap',flexShrink:0,marginLeft:8}}>{d.govOpinion}</span>
+            </div>
+            {/* Name */}
+            <div style={{fontSize:13,fontWeight:700,color:'#1e3a5f',lineHeight:1.35,marginBottom:10}}>{d.name}</div>
+            {/* Progress */}
+            <div style={{marginBottom:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:3}}>
+                <span style={{color:'#6b7280'}}>Avance</span>
+                <span style={{fontWeight:700,color:'#1e3a5f'}}>{d.progress}%</span>
+              </div>
+              <div className="progress-bar"><div className="progress-fill" style={{width:d.progress+'%',background:d.progress>=80?'#22c55e':d.progress>=50?'#f59e0b':'#ef4444'}}/></div>
+            </div>
+            {/* Meta row */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
+              <div style={{fontSize:10,color:'#6b7280'}}><strong>Área Usuaria:</strong><br/>{d.userArea}</div>
+              <div style={{fontSize:10,color:'#6b7280'}}><strong>Área Técnica:</strong><br/>{d.techArea}</div>
+              <div style={{fontSize:10,color:'#6b7280'}}><strong>Presupuesto:</strong><br/>{d.budget}</div>
+              <div style={{fontSize:10,color:'#6b7280'}}><strong>Fecha objetivo:</strong><br/>{d.targetDate}</div>
+            </div>
+            {/* Risk metrics */}
+            <div style={{display:'flex',gap:8,borderTop:'1px solid #f1f5f9',paddingTop:10,marginBottom:10}}>
+              {[['Riesgos',d.riskCount,'#374151'],['Críticos',d.criticalCount,'#dc2626'],['Fuera Apetito',d.outAppetite,'#f59e0b'],['Hallazgos',d.openFindings,'#7c3aed']].map(([l,v,c])=>
+                <div key={l} style={{textAlign:'center',flex:1}}>
+                  <div style={{fontSize:16,fontWeight:800,color:v>0&&l!=='Riesgos'?c:'#374151'}}>{v}</div>
+                  <div style={{fontSize:9,color:'#9ca3af',fontWeight:600,lineHeight:1.2}}>{l}</div>
+                </div>
+              )}
+            </div>
+            {/* Status + criticality */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:11,fontWeight:600,color:si.color}}>{si.icon} {d.status}</span>
+              <span className="badge" style={{background:cs.bg,color:cs.color,fontSize:10}}>{d.criticality}</span>
+            </div>
+          </div>
+        </div>;
+      })}
+      {sorted.length===0&&<div style={{textAlign:'center',padding:32,color:'#9ca3af',fontSize:13,gridColumn:'1/-1'}}>No hay iniciativas que coincidan con los filtros aplicados.</div>}
+    </div>;
+  }
+
+  // ─── MATRIX + CHARTS VIEW ───
+  function MatrixView(){
+    const byType=uTypes.map(t=>({label:t,count:P.filter(d=>d.type===t).length}));
+    const byPhaseData=matrixPhases.map(ph=>({label:ph,count:P.filter(d=>d.phase===ph).length}));
+    const byGov=[
+      {label:'FAVORABLE',count:favorable,color:'#22c55e'},
+      {label:'CONDICIONADO',count:condicionado,color:'#f59e0b'},
+      {label:'DESFAVORABLE',count:desfavorable,color:'#ef4444'},
+      {label:'PENDIENTE',count:P.filter(d=>d.govOpinion==='PENDIENTE').length,color:'#9ca3af'},
+    ].filter(x=>x.count>0);
+    const byCrit=uCrits.map(c=>({label:c,count:P.filter(d=>d.criticality===c).length,...critStyle(c)}));
+    const byArea=[...new Set(P.map(d=>d.userArea))].map(a=>({label:a,count:P.filter(d=>d.userArea===a).length})).sort((a,b)=>b.count-a.count);
+    const maxCount=Math.max(...[...byType,...byPhaseData,...byArea].map(x=>x.count));
+
+    return <div>
+      {/* Criticality × Phase Matrix */}
+      <div className="card" style={{marginBottom:16}}>
+        <div className="stitle">🗺️ Matriz de Portfolio: Criticidad × Fase de Implementación</div>
+        <div style={{overflowX:'auto'}}>
+          <table style={{fontSize:12}}>
+            <thead>
+              <tr>
+                <th style={{background:'#1e3a5f',color:'white',width:90}}>Criticidad \ Fase</th>
+                {matrixPhases.map(ph=><th key={ph} style={{background:'#1e3a5f',color:'white',textAlign:'center',minWidth:110}}>
+                  <span style={{color:phaseColor(ph)!=='#374151'?phaseColor(ph):'#93c5fd'}}>●</span> {ph}
+                </th>)}
+                <th style={{background:'#1e3a5f',color:'white',textAlign:'center'}}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matrixCrits.map(c=>{
+                const cs=critStyle(c);
+                const rowTotal=P.filter(d=>d.criticality===c).length;
+                return <tr key={c}>
+                  <td style={{background:cs.bg,color:cs.color,fontWeight:700,textAlign:'center',padding:'10px 8px'}}>{c}</td>
+                  {matrixPhases.map(ph=>{
+                    const items=matrixCell(c,ph);
+                    return <td key={ph} style={{background:items.length>0?cs.bg:'#fafafa',textAlign:'center',verticalAlign:'top',padding:'8px'}}>
+                      {items.length>0?<div>
+                        <div style={{fontSize:18,fontWeight:800,color:cs.color}}>{items.length}</div>
+                        {items.map(d=>{
+                          const gs=govStyle(d.govOpinion);
+                          return <div key={d.id} onClick={()=>setSel(d)} style={{fontSize:9,cursor:'pointer',marginTop:3,background:'white',border:`1px solid ${gs.border}`,borderRadius:4,padding:'2px 5px',color:gs.color,fontWeight:700,display:'inline-block',maxWidth:95,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
+                            title={d.name}>{d.id} · {d.govOpinion.slice(0,4)}</div>;
+                        })}
+                      </div>:<div style={{color:'#d1d5db',fontSize:12}}>—</div>}
+                    </td>;
+                  })}
+                  <td style={{textAlign:'center',fontWeight:800,color:cs.color,background:cs.bg}}>{rowTotal}</td>
+                </tr>;
+              })}
+              <tr style={{background:'#f0f4f8'}}>
+                <td style={{fontWeight:700}}>Total</td>
+                {matrixPhases.map(ph=><td key={ph} style={{textAlign:'center',fontWeight:700}}>{P.filter(d=>d.phase===ph).length}</td>)}
+                <td style={{textAlign:'center',fontWeight:800,color:'#1e3a5f'}}>{total}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
+          {['FAVORABLE','CONDICIONADO','DESFAVORABLE','PENDIENTE'].map(op=>{
+            const gs=govStyle(op);
+            return <span key={op} style={{background:gs.bg,color:gs.color,border:`1px solid ${gs.border}`,padding:'2px 10px',borderRadius:4,fontSize:10,fontWeight:700}}>{op}</span>;
+          })}
+          <span style={{fontSize:10,color:'#9ca3af',marginLeft:4,alignSelf:'center'}}>← Leyenda: Color badge = Opinión del Comité</span>
+        </div>
+      </div>
+
+      {/* Charts grid */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16,marginBottom:16}}>
+        {/* By Gov Opinion */}
+        <div className="card">
+          <div className="stitle">📊 Distribución por Opinión del Comité</div>
+          {byGov.map(x=><MiniBar key={x.label} label={x.label} count={x.count} max={total} color={x.color}/>)}
+          <div style={{marginTop:12,display:'flex',gap:6,flexWrap:'wrap'}}>
+            {byGov.map(x=><div key={x.label} style={{textAlign:'center',flex:1,minWidth:60}}>
+              <div style={{fontSize:22,fontWeight:800,color:x.color}}>{Math.round(x.count/total*100)}%</div>
+              <div style={{fontSize:9,color:'#6b7280'}}>{x.label}</div>
+            </div>)}
+          </div>
+        </div>
+        {/* By Type */}
+        <div className="card">
+          <div className="stitle">🤖 Iniciativas por Tipo de IA</div>
+          {byType.map(x=><MiniBar key={x.label} label={x.label} count={x.count} max={maxCount} color='#3b82f6'/>)}
+        </div>
+        {/* By Phase */}
+        <div className="card">
+          <div className="stitle">🔄 Iniciativas por Fase de Implementación</div>
+          {byPhaseData.map(x=><MiniBar key={x.label} label={x.label} count={x.count} max={maxCount} color={phaseColor(x.label)}/>)}
+        </div>
+        {/* By Area */}
+        <div className="card">
+          <div className="stitle">🏢 Iniciativas por Área Usuaria</div>
+          {byArea.map(x=><MiniBar key={x.label} label={x.label} count={x.count} max={maxCount} color='#8b5cf6'/>)}
+        </div>
+      </div>
+
+      {/* Risk score table */}
+      <div className="card" style={{marginBottom:16}}>
+        <div className="stitle">⚠️ Perfil de Riesgo Consolidado — Todas las Iniciativas</div>
+        <table>
+          <thead><tr>
+            <th>Iniciativa</th><th>Tipo</th><th>Criticidad</th><th>Score Inherente</th><th>Score Residual</th><th>Riesgos</th><th>Fuera Apetito</th><th>Hallazgos</th><th>Opinión</th>
+          </tr></thead>
+          <tbody>
+            {[...P].sort((a,b)=>b.residualAvg-a.residualAvg).map(d=>{
+              const gs=govStyle(d.govOpinion);
+              const cs=critStyle(d.criticality);
+              return <tr key={d.id} onClick={()=>setSel(d)} style={{cursor:'pointer'}}>
+                <td style={{fontWeight:600,fontSize:12}}><span style={{color:'#9ca3af',fontSize:10}}>{d.id}</span><br/>{d.name}</td>
+                <td style={{fontSize:11}}>{d.type}</td>
+                <td><span className="badge" style={{background:cs.bg,color:cs.color,fontSize:11}}>{d.criticality}</span></td>
+                <td style={{textAlign:'center',fontWeight:700,color:'#dc2626'}}>{d.inherentAvg}</td>
+                <td style={{textAlign:'center',fontWeight:800,color:d.residualAvg>6?'#dc2626':d.residualAvg>3?'#f59e0b':'#16a34a',fontSize:14}}>{d.residualAvg}</td>
+                <td style={{textAlign:'center'}}>{d.riskCount}</td>
+                <td style={{textAlign:'center',fontWeight:700,color:d.outAppetite>0?'#dc2626':'#16a34a'}}>{d.outAppetite}</td>
+                <td style={{textAlign:'center',fontWeight:700,color:d.openFindings>0?'#7c3aed':'#16a34a'}}>{d.openFindings}</td>
+                <td><span style={{background:gs.bg,color:gs.color,border:`1px solid ${gs.border}`,padding:'2px 8px',borderRadius:4,fontSize:10,fontWeight:700}}>{d.govOpinion}</span></td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>;
+  }
+
+  // ─── RENDER ───
+  return <div>
+    {sel&&<DetailModal d={sel} onClose={()=>setSel(null)}/>}
+
+    {/* Header */}
+    <div style={{background:'linear-gradient(135deg,#1a3256 0%,#2a5298 60%,#1e3a5f 100%)',color:'white',borderRadius:12,padding:'20px 24px',marginBottom:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
+        <div>
+          <div style={{fontSize:11,opacity:.6,letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Comité de Gobierno IA</div>
+          <div style={{fontSize:20,fontWeight:800}}>🏛️ Portfolio de Iniciativas IA — Vista Ejecutiva</div>
+          <div style={{fontSize:12,opacity:.7,marginTop:4}}>Consolidado de todas las iniciativas · Evaluación al {new Date().toLocaleDateString('es-PY',{day:'2-digit',month:'long',year:'numeric'})}</div>
+        </div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {['tabla','tarjetas','matriz'].map(v=><button key={v} onClick={()=>setView(v)} style={{padding:'7px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer',border:'none',background:view===v?'rgba(255,255,255,.95)':' rgba(255,255,255,.15)',color:view===v?'#1e3a5f':'white',transition:'all .15s',textTransform:'capitalize'}}>
+            {v==='tabla'?'📋 Tabla':v==='tarjetas'?'🃏 Tarjetas':'📊 Matrices'}
+          </button>)}
+        </div>
+      </div>
+    </div>
+
+    {/* KPI Cards */}
+    <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:16}}>
+      <KpiCard icon='📁' label='Total Iniciativas' value={total} sub={`Promedio avance: ${avgProgress}%`} color='#1e3a5f' bg='white'/>
+      <KpiCard icon='✅' label='FAVORABLE' value={favorable} sub={`${Math.round(favorable/total*100)}% del portfolio`} color='#15803d' bg='white'/>
+      <KpiCard icon='🟡' label='CONDICIONADO' value={condicionado} sub='Con compromisos' color='#92400e' bg='white'/>
+      <KpiCard icon='🔴' label='DESFAVORABLE' value={desfavorable} sub='Requieren acción' color='#dc2626' bg='#fef2f2'/>
+      <KpiCard icon='⚡' label='Criticidad Crítico' value={criticos} sub='Máxima prioridad' color='#dc2626' bg='white'/>
+      <KpiCard icon='⚠️' label='Con Desviación' value={atRisk} sub='Retraso o suspendido' color='#c2410c' bg='white'/>
+      <KpiCard icon='📋' label='Hallazgos Abiertos' value={totalFindings} sub='Total portfolio' color='#7c3aed' bg='white'/>
+      <KpiCard icon='🚨' label='Fuera de Apetito' value={totalOOA} sub='Riesgos consolidados' color='#dc2626' bg={totalOOA>0?'#fef2f2':'white'}/>
+    </div>
+
+    {/* Filter bar */}
+    <div className="card" style={{marginBottom:16,padding:'12px 16px'}}>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div style={{flex:1,minWidth:100}}>
+          <div style={{fontSize:10,fontWeight:600,color:'#6b7280',marginBottom:3}}>TIPO DE IA</div>
+          <select className="fi" value={filters.type} onChange={e=>setFilters(f=>({...f,type:e.target.value}))}>
+            <option value="">Todos</option>{uTypes.map(t=><option key={t}>{t}</option>)}</select>
+        </div>
+        <div style={{flex:1,minWidth:100}}>
+          <div style={{fontSize:10,fontWeight:600,color:'#6b7280',marginBottom:3}}>FASE</div>
+          <select className="fi" value={filters.phase} onChange={e=>setFilters(f=>({...f,phase:e.target.value}))}>
+            <option value="">Todas</option>{uPhases.map(p=><option key={p}>{p}</option>)}</select>
+        </div>
+        <div style={{flex:1,minWidth:100}}>
+          <div style={{fontSize:10,fontWeight:600,color:'#6b7280',marginBottom:3}}>CRITICIDAD</div>
+          <select className="fi" value={filters.crit} onChange={e=>setFilters(f=>({...f,crit:e.target.value}))}>
+            <option value="">Todas</option>{uCrits.map(c=><option key={c}>{c}</option>)}</select>
+        </div>
+        <div style={{flex:1,minWidth:100}}>
+          <div style={{fontSize:10,fontWeight:600,color:'#6b7280',marginBottom:3}}>ÁREA USUARIA</div>
+          <select className="fi" value={filters.area} onChange={e=>setFilters(f=>({...f,area:e.target.value}))}>
+            <option value="">Todas</option>{uAreas.map(a=><option key={a}>{a}</option>)}</select>
+        </div>
+        <div style={{flex:1,minWidth:100}}>
+          <div style={{fontSize:10,fontWeight:600,color:'#6b7280',marginBottom:3}}>ESTADO</div>
+          <select className="fi" value={filters.status} onChange={e=>setFilters(f=>({...f,status:e.target.value}))}>
+            <option value="">Todos</option>{uStatus.map(s=><option key={s}>{s}</option>)}</select>
+        </div>
+        <div style={{flex:1,minWidth:100}}>
+          <div style={{fontSize:10,fontWeight:600,color:'#6b7280',marginBottom:3}}>OPINIÓN GOV.</div>
+          <select className="fi" value={filters.gov} onChange={e=>setFilters(f=>({...f,gov:e.target.value}))}>
+            <option value="">Todas</option>{uGov.map(g=><option key={g}>{g}</option>)}</select>
+        </div>
+        <button onClick={()=>setFilters({type:'',phase:'',crit:'',area:'',status:'',gov:''})} className="btn-s" style={{fontSize:11,padding:'6px 12px',height:32,flexShrink:0}}>✕ Limpiar</button>
+        {Object.values(filters).some(v=>v)&&<div style={{fontSize:11,color:'#6b7280',alignSelf:'center',flexShrink:0}}>{filtered.length} de {total}</div>}
+      </div>
+    </div>
+
+    {/* Active view */}
+    {view==='tabla'&&<div className="card" style={{padding:0,overflow:'hidden'}}><div style={{padding:'14px 16px 12px',borderBottom:'1px solid #e5e7eb',background:'#f8fafc',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <span style={{fontSize:13,fontWeight:700,color:'#1e3a5f'}}>📋 Tabla de Iniciativas ({sorted.length})</span>
+      <span style={{fontSize:11,color:'#9ca3af'}}>Clic en columna para ordenar · Clic en fila para ver detalle</span>
+    </div><div style={{padding:0}}><TableView/></div></div>}
+    {view==='tarjetas'&&<div><div style={{fontSize:13,fontWeight:700,color:'#6b7280',marginBottom:10}}>🃏 {sorted.length} iniciativa(s) · Clic para ver detalle</div><CardsView/></div>}
+    {view==='matriz'&&<MatrixView/>}
+
+    {/* Executive Summary */}
+    <div className="card" style={{marginTop:16,borderLeft:'4px solid #1e3a5f',background:'#f8fafc'}}>
+      <div className="stitle" style={{borderColor:'#dbeafe'}}>📝 Resumen Ejecutivo — Comité de Gobierno IA</div>
+      <div style={{fontSize:12,color:'#374151',lineHeight:1.8}}>
+        {execSummary().map((line,i)=><div key={i} style={{marginBottom:i<execSummary().length-1?6:0,paddingLeft:line.startsWith('⚠️')||line.startsWith('🔴')||line.startsWith('🟡')||line.startsWith('🚨')||line.startsWith('📋')?0:0}}>{line}</div>)}
+      </div>
+      <div style={{marginTop:12,fontSize:10,color:'#9ca3af',borderTop:'1px solid #e5e7eb',paddingTop:8}}>
+        Generado automáticamente por AIRAT v1.0 · {new Date().toLocaleString('es-PY')} · Basado en {total} iniciativas registradas
+      </div>
+    </div>
+  </div>;
+}
+
+/* ═══════ APP PRINCIPAL ═══════ */
+function App(){
+  const [state,dispatch]=useReducer(reducer,initState);
+  const [showDemo,setShowDemo]=useState(null);
+  const [showReset,setShowReset]=useState(false);
+  useEffect(()=>{
+    if(!state.demoLoaded){setShowDemo(true);}
+  },[]);
+  useEffect(()=>{
+    try{localStorage.setItem('airat_state',JSON.stringify(state));}catch(e){}
+  },[state]);
+  useEffect(()=>{
+    // Check KRI alerts
+    state.kris.forEach(k=>{
+      if(!k.active||k.currentVal===''||k.thR==='')return;
+      const v=parseFloat(k.currentVal);const r=parseFloat(k.thR);
+      const inverted=k.id==='KRI-10'||k.id==='KRI-03'||k.id==='KRI-09'||k.id==='KRI-07'||k.id==='KRI-12'||k.id==='KRI-14';
+      const isRed=inverted?v<parseFloat(k.thR):v>r;
+      if(isRed&&v!==''){}
+    });
+  },[state.kris]);
+  const ctxVal={state,dispatch};
+  function loadDemo(){setShowDemo(false);dispatch({type:'LOAD_DEMO'});dispatch({type:'TOAST',title:'Datos de demo cargados',msg:'Proyecto: Sistema de Scoring Crediticio con IA Generativa'});}
+  function skipDemo(){setShowDemo(false);}
+  const modules=[
+    {comp:<Module0/>,title:'Módulo 0'},
+    {comp:<Module1/>,title:'Módulo 1'},
+    {comp:<Module2/>,title:'Módulo 2'},
+    {comp:<Module3/>,title:'Módulo 3'},
+    {comp:<Module4/>,title:'Módulo 4'},
+    {comp:<Module5/>,title:'Módulo 5'},
+    {comp:<Module6/>,title:'Portfolio IA'},
+  ];
+  return <AppCtx.Provider value={ctxVal}>
+    <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
+      {/* Demo modal */}
+      {showDemo&&<div className="modal-overlay" style={{zIndex:200}}>
+        <div className="modal-box" style={{textAlign:'center',maxWidth:480}}>
+          <div style={{fontSize:40,marginBottom:12}}>🤖</div>
+          <div style={{fontSize:20,fontWeight:800,color:'#1e3a5f',marginBottom:8}}>AIRAT — AI Risk Assessment Tool</div>
+          <div style={{fontSize:13,color:'#6b7280',marginBottom:20,lineHeight:1.6}}>
+            Herramienta de evaluación de riesgos de Inteligencia Artificial para entidades financieras.<br/>
+            <strong>¿Desea cargar datos de ejemplo</strong> para explorar todas las funcionalidades?<br/>
+            <span style={{fontSize:11}}>Proyecto demo: Sistema de Scoring Crediticio con IA Generativa</span>
+          </div>
+          <div style={{background:'#f8fafc',borderRadius:8,padding:'12px 16px',marginBottom:20,fontSize:11,textAlign:'left',color:'#6b7280'}}>
+            📌 Marcos: ISO 42001 · NIST AI RMF · EU AI Act · COSO ERM · Basel III · SR 11-7 · SB/BCP Paraguay
+          </div>
+          <div style={{display:'flex',gap:12,justifyContent:'center'}}>
+            <button className="btn-s" onClick={skipDemo}>Iniciar desde cero</button>
+            <button className="btn-p" onClick={loadDemo}>✨ Cargar datos de demo</button>
+          </div>
+        </div>
+      </div>}
+      {/* Reset confirm */}
+      {showReset&&<ConfirmModal msg="¿Está seguro de que desea resetear toda la evaluación? Esta acción no se puede deshacer." onOk={()=>{dispatch({type:'RESET'});setShowReset(false);setShowDemo(true);}} onCancel={()=>setShowReset(false)}/>}
+      {/* Header */}
+      <Header/>
+      {/* Body */}
+      <div style={{display:'flex',flex:1,overflow:'hidden'}}>
+        {/* Sidebar */}
+        <div style={{overflowY:'auto',flexShrink:0}}>
+          <Sidebar/>
+          <div style={{padding:'10px 16px',borderTop:'1px solid #e5e7eb'}}>
+            <button onClick={()=>setShowReset(true)} style={{width:'100%',background:'#fee2e2',color:'#dc2626',border:'1px solid #fca5a5',padding:'6px',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer'}}>
+              🔄 Resetear evaluación
+            </button>
+          </div>
+        </div>
+        {/* Main content */}
+        <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
+          {/* Progress */}
+          {state.activeModule!==6&&<div className="card no-print" style={{marginBottom:16,padding:'12px 20px'}}>
+            <ProgressSteps current={state.activeModule} unlocked={state.unlocked}/>
+          </div>}
+          {/* Active module */}
+          {modules[state.activeModule]?.comp}
+          {/* Audit opinion banner */}
+          {state.activeModule===5&&state.audit.opinion&&state.audit.auditor&&<div style={{marginTop:16,padding:'16px 20px',borderRadius:10,background:state.audit.opinion==='SATISFACTORIO'?'#f0fdf4':state.audit.opinion==='INSATISFACTORIO'?'#fef2f2':'#fefce8',border:`2px solid ${state.audit.opinion==='SATISFACTORIO'?'#22c55e':state.audit.opinion==='INSATISFACTORIO'?'#ef4444':'#f59e0b'}`}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>📜 Opinión Final de Auditoría: <strong>{state.audit.opinion}</strong></div>
+            {state.audit.narrative&&<div style={{fontSize:12,color:'#374151',marginBottom:8,lineHeight:1.5}}>{state.audit.narrative}</div>}
+            <div style={{fontSize:11,color:'#6b7280'}}>Firmado por: <strong>{state.audit.auditor}</strong> — {state.audit.cargo} | {state.audit.date}</div>
+          </div>}
+          {/* Footer */}
+          <div style={{marginTop:24,borderTop:'1px solid #e5e7eb',paddingTop:12,fontSize:10,color:'#9ca3af',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:4}}>
+            <span>AIRAT v1.0 | AI Risk Assessment Tool | © Prime Consultores {new Date().getFullYear()}</span>
+            <span>ISO/IEC 42001 · NIST AI RMF 1.0 · EU AI Act · COSO ERM 2017 · ISO 31000 · Basel III · SR 11-7 · SB/BCP Paraguay</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ToastSystem/>
+  </AppCtx.Provider>;
+}
+
+/* ═══════ RENDER ═══════ */
+window.__airatSetBar&&window.__airatSetBar(90);
+window.__airatSetStatus&&window.__airatSetStatus('Montando interfaz…');
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+/* Hide loading overlay once React takes over */
+setTimeout(function(){window.__airatHideLoading&&window.__airatHideLoading();},400);
+</script>
+</body>
+</html>

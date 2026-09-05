@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIRAT — Dashboard Ejecutivo · Comité de Riesgos IA</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f0f4f8;
+  --bg2:#ffffff;
+  --bg3:#f8fafc;
+  --card:#ffffff;
+  --border:#dde3ea;
+  --border-light:#edf1f5;
+  --text:#1a2840;
+  --text2:#374151;
+  --muted:#6b7a96;
+  --muted2:#94a3b8;
+  --blue:#1e3a5f;
+  --blue2:#2d5a9a;
+  --accent:#2563eb;
+  --accent-light:#eff6ff;
+  --red:#dc2626;
+  --red-light:#fef2f2;
+  --orange:#ea580c;
+  --orange-light:#fff7ed;
+  --yellow:#b45309;
+  --yellow-light:#fffbeb;
+  --green:#15803d;
+  --green-light:#f0fdf4;
+  --purple:#6d28d9;
+  --teal:#0f766e;
+  --shadow:0 1px 3px rgba(15,30,60,.08),0 4px 12px rgba(15,30,60,.06);
+  --shadow-lg:0 4px 16px rgba(15,30,60,.1),0 8px 32px rgba(15,30,60,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(120deg,#1a3256 0%,#1e3a5f 45%,#234a7a 100%);border-bottom:3px solid #2a5298;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(15,30,60,.25);}
+.hdr-l{display:flex;align-items:center;gap:14px;}
+.logo{width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.hdr-title{font-size:17px;font-weight:800;color:#ffffff;letter-spacing:-.02em;}
+.hdr-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;}
+.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.badge{padding:4px 11px;border-radius:6px;font-size:10px;font-weight:800;white-space:nowrap;letter-spacing:.03em;}
+.badge-red{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.4);}
+.badge-orange{background:rgba(249,115,22,.18);color:#fdba74;border:1px solid rgba(249,115,22,.35);}
+.badge-blue{background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);}
+.btn{padding:7px 15px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:none;transition:all .15s;letter-spacing:.02em;}
+.btn-ghost{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;}
+.btn-ghost:hover{background:rgba(255,255,255,.2);}
+.btn-white{background:#ffffff;color:var(--blue);border:1px solid rgba(255,255,255,.3);}
+.btn-white:hover{background:#f0f6ff;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+
+/* ── INFO STRIP ── */
+.strip{background:#ffffff;border-bottom:1px solid var(--border);padding:9px 28px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;box-shadow:0 1px 4px rgba(15,30,60,.05);}
+.strip-item{display:flex;align-items:center;gap:6px;font-size:11px;}
+.strip-lbl{color:var(--muted);font-weight:600;}
+.strip-val{color:var(--text);font-weight:700;}
+.strip-divider{width:1px;height:18px;background:var(--border);flex-shrink:0;}
+
+/* ── FILTERS ── */
+.filters{background:#ffffff;border-bottom:1px solid var(--border);padding:10px 28px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.flt-grp{display:flex;align-items:center;gap:6px;}
+.flt-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+.flt-sel{background:var(--bg3);border:1.5px solid var(--border);color:var(--text);padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer;outline:none;transition:border-color .15s;}
+.flt-sel:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.flt-clr{background:transparent;border:1.5px solid var(--border);color:var(--muted);padding:5px 11px;border-radius:7px;font-size:10px;cursor:pointer;font-weight:700;transition:all .15s;}
+.flt-clr:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.filter-tag{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--bg3);padding:4px 8px;border-radius:5px;border:1px solid var(--border);}
+
+/* ── MAIN ── */
+.main{padding:20px 28px 36px;}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:20px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;transition:box-shadow .2s,transform .15s;box-shadow:var(--shadow);}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--k-color,var(--accent));border-radius:12px 12px 0 0;}
+.kpi::after{content:'';position:absolute;top:0;right:0;width:48px;height:48px;border-radius:0 12px 0 100%;background:var(--k-bg,rgba(37,99,235,.05));}
+.kpi-icon{font-size:17px;margin-bottom:8px;display:block;}
+.kpi-val{font-size:28px;font-weight:900;color:var(--k-color,var(--accent));line-height:1;letter-spacing:-.02em;}
+.kpi-lbl{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:5px;}
+.kpi-sub{font-size:10px;color:var(--muted2);margin-top:4px;}
+
+/* ── SECTION TITLE ── */
+.sec-title{font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.sec-dot{width:7px;height:7px;border-radius:2px;background:var(--accent);flex-shrink:0;}
+
+/* ── GRID LAYOUTS ── */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.row3{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+.row-hmap{display:grid;grid-template-columns:1.15fr 0.85fr;gap:16px;margin-bottom:16px;}
+@media(max-width:920px){.row2,.row3,.row-hmap{grid-template-columns:1fr;}}
+
+/* ── CARD ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:var(--shadow);}
+
+/* ── HEAT MAP ── */
+.hmap-container{display:flex;gap:10px;align-items:flex-start;}
+.hmap-y-label{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center;flex-shrink:0;padding:4px 0;}
+.hmap-inner{flex:1;}
+.hmap-grid{display:grid;grid-template-columns:22px repeat(5,1fr);grid-template-rows:repeat(5,1fr) 22px;gap:5px;}
+.hmap-cell{border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px;min-height:50px;padding:4px;position:relative;cursor:default;transition:filter .15s,transform .1s;border:1px solid rgba(0,0,0,.04);}
+.hmap-cell:hover{filter:brightness(.92);transform:scale(1.02);}
+.hmap-axis{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);font-weight:700;}
+.hmap-code{font-size:8px;font-weight:800;color:#fff;background:rgba(0,0,0,.28);border-radius:3px;padding:1px 3px;line-height:1.3;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.3);}
+.hmap-x-labels{display:grid;grid-template-columns:22px repeat(5,1fr);gap:5px;margin-top:4px;}
+.hmap-x-lbl{font-size:9px;color:var(--muted);text-align:center;font-weight:600;}
+.hmap-x-axis-title{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center;margin-top:7px;}
+/* Heat map cell colors — saturated for light bg */
+.c-critico{background:linear-gradient(135deg,#ef4444,#dc2626);}
+.c-alto{background:linear-gradient(135deg,#f97316,#ea580c);}
+.c-medio{background:linear-gradient(135deg,#fbbf24,#d97706);}
+.c-bajo{background:linear-gradient(135deg,#4ade80,#16a34a);}
+.c-vbajo{background:linear-gradient(135deg,#a7f3d0,#34d399);opacity:.7;}
+
+/* ── RISK TABLE ── */
+.tbl-wrap{overflow-x:auto;margin-top:8px;}
+.rtbl{width:100%;border-collapse:collapse;font-size:11px;}
+.rtbl th{background:var(--bg3);color:var(--muted);font-weight:800;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;transition:color .12s;}
+.rtbl th:hover{color:var(--accent);}
+.rtbl td{padding:9px 12px;border-bottom:1px solid var(--border-light);vertical-align:middle;color:var(--text2);}
+.rtbl tr:hover td{background:var(--accent-light);}
+.r-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:9px;font-weight:800;white-space:nowrap;border:1px solid transparent;}
+.lc{background:#fef2f2;color:#b91c1c;border-color:#fecaca;}
+.lh{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+.lm{background:#fffbeb;color:#92400e;border-color:#fde68a;}
+.ll{background:#f0fdf4;color:#166534;border-color:#bbf7d0;}
+.sc-bar{height:7px;border-radius:4px;display:inline-block;min-width:3px;}
+.domain-dot{width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0;}
+.out-apetito{background:linear-gradient(90deg,#fef2f2,transparent);}
+.out-apetito td:first-child{border-left:3px solid #ef4444;}
+
+/* ── KRI ── */
+.kri-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
+.kri-card{background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:14px;transition:box-shadow .15s;}
+.kri-card:hover{box-shadow:var(--shadow);}
+.kri-name{font-size:10px;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.4;}
+.kri-dom{font-size:9px;color:var(--muted);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.kri-track{height:8px;border-radius:5px;background:var(--border);overflow:hidden;margin-bottom:7px;}
+.kri-fill{height:100%;border-radius:5px;transition:width .6s;}
+.kri-meta{display:flex;justify-content:space-between;align-items:center;font-size:9px;gap:4px;}
+.kri-val{font-weight:900;font-size:12px;}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
+.lg-item{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted2);}
+.lg-dot{width:11px;height:11px;border-radius:3px;}
+
+/* ── CONCLUSIONS ── */
+.conc-section{background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:14px;}
+.conc-section.critical{border-left:4px solid #dc2626;background:#fef2f2;}
+.conc-section.recs{border-left:4px solid #15803d;background:#f0fdf4;}
+.conc-title{font-size:11px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+
+/* ── FOOTER ── */
+.footer{margin:24px 28px 18px;border-top:2px solid var(--border);padding-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.footer-txt{font-size:9px;color:var(--muted2);font-weight:500;}
+.fw-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.fw-tag{font-size:8px;padding:3px 8px;border-radius:5px;background:var(--accent-light);color:var(--accent);border:1px solid rgba(37,99,235,.2);font-weight:800;}
+
+/* ── TOOLTIP ── */
+.tooltip{position:absolute;background:#1e2d3d;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:10px;color:#e2e8f0;z-index:200;pointer-events:none;max-width:240px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+
+/* ── CANVAS ── */
+canvas{max-height:265px;}
+
+/* ── PRINT ── */
+@media print{
+  body{background:#fff !important;}
+  .hdr{background:#1e3a5f !important;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .filters,.btn,.btn-ghost,.btn-white{display:none !important;}
+  .card,.kpi{box-shadow:none !important;border:1px solid #e2e8f0 !important;break-inside:avoid;}
+  .rtbl th{background:#f8fafc !important;}
+  canvas{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .row2,.row3,.row-hmap{grid-template-columns:1fr 1fr;}
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted2);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="logo">🛡️</div>
+    <div>
+      <div class="hdr-title">AIRAT — Dashboard Ejecutivo de Riesgos IA</div>
+      <div class="hdr-sub">AI Risk Assessment Tool v1.0 · Presentación Comité de Riesgos</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <span class="badge badge-red">⚠ CONDICIONADO</span>
+    <span class="badge badge-orange">PILOTO / POC</span>
+    <span class="badge badge-blue">CONFIDENCIAL</span>
+    <button class="btn btn-ghost" onclick="window.print()">🖨 Imprimir / PDF</button>
+    <button class="btn btn-white" onclick="toggleFullscreen()">⛶ Pantalla completa</button>
+  </div>
+</div>
+
+<!-- INFO STRIP -->
+<div class="strip">
+  <div class="strip-item"><span class="strip-lbl">Proyecto:</span><span class="strip-val" id="s-project">Sistema de Scoring Crediticio con IA Generativa</span></div>
+  <div class="strip-divider"></div>
+  <div class="strip-item"><span class="strip-lbl">Institución:</span><span class="strip-val" id="s-inst">[Entidad Financiera Demo]</span></div>
+  <div class="strip-divider"></div>
+  <div class="strip-item"><span class="strip-lbl">Tipo IA:</span><span class="strip-val" id="s-aitype">IA Generativa · Modelo Predictivo ML</span></div>
+  <div class="strip-divider"></div>
+  <div class="strip-item"><span class="strip-lbl">Evaluador:</span><span class="strip-val" id="s-eval">Prime Consultores</span></div>
+  <div class="strip-divider"></div>
+  <div class="strip-item"><span class="strip-lbl">Fecha:</span><span class="strip-val" id="s-date">19/05/2026</span></div>
+  <div class="strip-divider"></div>
+  <div class="strip-item"><span class="strip-lbl">Apetito Residual:</span><span class="strip-val" style="color:#ea580c">≤ 12</span></div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <span class="filter-tag">🔍 Filtros</span>
+  <div class="flt-grp"><label class="flt-lbl">Dominio</label>
+    <select class="flt-sel" id="f-domain" onchange="applyFilters()">
+      <option value="">Todos</option>
+      <option value="1">Modelo / Algoritmo</option>
+      <option value="2">Datos</option>
+      <option value="3">Ciberseguridad</option>
+      <option value="4">Operacional</option>
+      <option value="5">Cumplimiento / Regulatorio</option>
+      <option value="6">Estratégico / Reputacional</option>
+      <option value="7">Gobierno / Ética</option>
+      <option value="8">Terceros</option>
+    </select>
+  </div>
+  <div class="flt-grp"><label class="flt-lbl">Nivel</label>
+    <select class="flt-sel" id="f-level" onchange="applyFilters()">
+      <option value="">Todos</option>
+      <option value="Crítico">Crítico</option>
+      <option value="Alto">Alto</option>
+      <option value="Medio">Medio</option>
+      <option value="Bajo">Bajo</option>
+    </select>
+  </div>
+  <div class="flt-grp"><label class="flt-lbl">Área</label>
+    <select class="flt-sel" id="f-area" onchange="applyFilters()">
+      <option value="">Todas</option>
+      <option value="Créditos">Créditos</option>
+      <option value="Tecnología">Tecnología</option>
+      <option value="Cumplimiento">Cumplimiento</option>
+      <option value="Operaciones">Operaciones</option>
+    </select>
+  </div>
+  <div class="flt-grp"><label class="flt-lbl">Estrategia</label>
+    <select class="flt-sel" id="f-strat" onchange="applyFilters()">
+      <option value="">Todas</option>
+      <option value="Mitigar">Mitigar</option>
+      <option value="Aceptar">Aceptar</option>
+      <option value="Transferir">Transferir</option>
+      <option value="Evitar">Evitar</option>
+    </select>
+  </div>
+  <div class="flt-grp"><label class="flt-lbl">Apetito</label>
+    <select class="flt-sel" id="f-apetito" onchange="applyFilters()">
+      <option value="">Todos</option>
+      <option value="fuera">Fuera de Apetito</option>
+      <option value="dentro">Dentro de Apetito</option>
+    </select>
+  </div>
+  <button class="flt-clr" onclick="clearFilters()">✕ Limpiar</button>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi" style="--k-color:#475569;--k-bg:rgba(71,85,105,.06)">
+      <span class="kpi-icon">📋</span>
+      <div class="kpi-val" id="k-total">18</div>
+      <div class="kpi-lbl">Riesgos identificados</div>
+      <div class="kpi-sub">De 42 del catálogo</div>
+    </div>
+    <div class="kpi" style="--k-color:#dc2626;--k-bg:rgba(220,38,38,.06)">
+      <span class="kpi-icon">🔴</span>
+      <div class="kpi-val" id="k-crit">3</div>
+      <div class="kpi-lbl">Críticos (score ≥16)</div>
+      <div class="kpi-sub">Score inherente</div>
+    </div>
+    <div class="kpi" style="--k-color:#ea580c;--k-bg:rgba(234,88,12,.06)">
+      <span class="kpi-icon">⚠️</span>
+      <div class="kpi-val" id="k-fuera">3</div>
+      <div class="kpi-lbl">Fuera de apetito</div>
+      <div class="kpi-sub">Residual &gt; 12</div>
+    </div>
+    <div class="kpi" style="--k-color:#2563eb;--k-bg:rgba(37,99,235,.06)">
+      <span class="kpi-icon">📊</span>
+      <div class="kpi-val" id="k-inh">12.9</div>
+      <div class="kpi-lbl">Score inh. promedio</div>
+      <div class="kpi-sub">Máx: 20 · Mín: 8</div>
+    </div>
+    <div class="kpi" style="--k-color:#6d28d9;--k-bg:rgba(109,40,217,.06)">
+      <span class="kpi-icon">🎯</span>
+      <div class="kpi-val" id="k-res">8.7</div>
+      <div class="kpi-lbl">Score res. promedio</div>
+      <div class="kpi-sub">Post-controles</div>
+    </div>
+    <div class="kpi" style="--k-color:#15803d;--k-bg:rgba(21,128,61,.06)">
+      <span class="kpi-icon">📉</span>
+      <div class="kpi-val" id="k-red">32%</div>
+      <div class="kpi-lbl">Reducción de riesgo</div>
+      <div class="kpi-sub">Inh → Residual</div>
+    </div>
+    <div class="kpi" style="--k-color:#dc2626;--k-bg:rgba(220,38,38,.06)">
+      <span class="kpi-icon">🚨</span>
+      <div class="kpi-val" id="k-kri">5</div>
+      <div class="kpi-lbl">KRIs en alerta roja</div>
+      <div class="kpi-sub">De 10 monitoreados</div>
+    </div>
+    <div class="kpi" style="--k-color:#b45309;--k-bg:rgba(180,83,9,.06)">
+      <span class="kpi-icon">🏛️</span>
+      <div class="kpi-val" id="k-gov">2/5</div>
+      <div class="kpi-lbl">Madurez gobierno IA</div>
+      <div class="kpi-sub">Nivel Básico</div>
+    </div>
+  </div>
+
+  <!-- HEAT MAP + DOMAIN BAR -->
+  <div class="row-hmap">
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Mapa de Calor — Probabilidad × Impacto (Score Inherente)</div>
+      <div class="legend">
+        <div class="lg-item"><div class="lg-dot c-critico" style="border-radius:3px"></div>Crítico (≥16)</div>
+        <div class="lg-item"><div class="lg-dot c-alto" style="border-radius:3px"></div>Alto (12–15)</div>
+        <div class="lg-item"><div class="lg-dot c-medio" style="border-radius:3px"></div>Medio (8–11)</div>
+        <div class="lg-item"><div class="lg-dot c-bajo" style="border-radius:3px"></div>Bajo (4–7)</div>
+      </div>
+      <div class="hmap-container">
+        <div class="hmap-y-label">Probabilidad →</div>
+        <div class="hmap-inner">
+          <div class="hmap-grid" id="hmap-grid"></div>
+          <div class="hmap-x-labels" id="hmap-xlabels">
+            <div></div>
+            <div class="hmap-x-lbl">1</div><div class="hmap-x-lbl">2</div><div class="hmap-x-lbl">3</div><div class="hmap-x-lbl">4</div><div class="hmap-x-lbl">5</div>
+          </div>
+          <div class="hmap-x-axis-title">← Impacto →</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Exposición Acumulada por Dominio</div>
+      <canvas id="chart-domain"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW: RADAR + LEVEL + STRATEGY -->
+  <div class="row3">
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Perfil de Riesgo por Dominio (Radar)</div>
+      <canvas id="chart-radar"></canvas>
+    </div>
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Distribución por Nivel</div>
+      <canvas id="chart-level"></canvas>
+    </div>
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Estrategia de Tratamiento</div>
+      <canvas id="chart-strat"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW: AREA + COMPARE -->
+  <div class="row2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Exposición por Área de Negocio</div>
+      <canvas id="chart-area"></canvas>
+    </div>
+    <div class="card">
+      <div class="sec-title"><div class="sec-dot"></div>Score Inherente vs Residual — Top 10</div>
+      <canvas id="chart-compare"></canvas>
+    </div>
+  </div>
+
+  <!-- RISK REGISTER TABLE -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="sec-title"><div class="sec-dot"></div>Registro de Riesgos IA — Evaluación Completa
+      <span style="margin-left:auto;font-size:10px;color:var(--muted2);font-weight:600;" id="tbl-count"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="rtbl" id="risk-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('code')">Código ↕</th>
+            <th onclick="sortTable('domain')">Dominio ↕</th>
+            <th onclick="sortTable('name')">Evento de Riesgo</th>
+            <th onclick="sortTable('area')">Área ↕</th>
+            <th onclick="sortTable('inh')">Inherente ↕</th>
+            <th onclick="sortTable('res')">Residual ↕</th>
+            <th onclick="sortTable('level')">Nivel ↕</th>
+            <th onclick="sortTable('strategy')">Estrategia ↕</th>
+            <th>Apetito</th>
+          </tr>
+        </thead>
+        <tbody id="risk-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- KRI PANEL -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="sec-title"><div class="sec-dot"></div>Indicadores Clave de Riesgo (KRIs)
+      <span style="margin-left:auto;font-size:10px;color:var(--muted2);display:flex;gap:10px;">
+        <span>🔴 En alerta</span><span>🟡 Advertencia</span><span>🟢 Normal</span>
+      </span>
+    </div>
+    <div class="kri-grid" id="kri-grid"></div>
+  </div>
+
+  <!-- CONCLUSIONS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="conc-section critical">
+      <div class="conc-title" style="color:#b91c1c;">🔴 Hallazgos Críticos para el Comité</div>
+      <div style="font-size:11px;color:#7f1d1d;line-height:1.7;" id="conc-critical"></div>
+    </div>
+    <div class="conc-section recs">
+      <div class="conc-title" style="color:#166534;">✅ Recomendaciones Prioritarias</div>
+      <div style="font-size:11px;color:#14532d;line-height:1.7;" id="conc-recs"></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-txt">AIRAT v1.0 — AI Risk Assessment Tool &nbsp;·&nbsp; © Prime Consultores 2026 &nbsp;·&nbsp; Uso Confidencial — Comité de Riesgos IA</div>
+  <div class="fw-tags">
+    <span class="fw-tag">ISO/IEC 42001</span>
+    <span class="fw-tag">NIST AI RMF 1.0</span>
+    <span class="fw-tag">EU AI Act</span>
+    <span class="fw-tag">COSO ERM 2017</span>
+    <span class="fw-tag">Basel III</span>
+    <span class="fw-tag">SR 11-7</span>
+    <span class="fw-tag">SB/BCP Paraguay</span>
+    <span class="fw-tag">ISO 31000</span>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip" style="display:none;"></div>
+
+<script>
+/* ═══ DATA ═══ */
+const APPETITE = 12;
+const DOMAINS = {
+  1:{name:'Modelo / Algoritmo', short:'Modelo', color:'#4f46e5'},
+  2:{name:'Datos', short:'Datos', color:'#0284c7'},
+  3:{name:'Ciberseguridad', short:'Ciber', color:'#dc2626'},
+  4:{name:'Operacional', short:'Operac.', color:'#ea580c'},
+  5:{name:'Cumplimiento', short:'Cumpli.', color:'#059669'},
+  6:{name:'Estratégico', short:'Estratég.', color:'#7c3aed'},
+  7:{name:'Gobierno', short:'Gobierno', color:'#b45309'},
+  8:{name:'Terceros', short:'Terceros', color:'#db2777'},
+};
+
+const ALL_RISKS = [
+  {d:1,code:'R01',name:'Sesgo algorítmico (bias) en decisiones automatizadas',p:4,i:5,inh:20,res:13,strategy:'Mitigar',area:'Créditos'},
+  {d:1,code:'R02',name:'Deriva del modelo (model drift) por cambio de distribución',p:3,i:4,inh:12,res:7,strategy:'Mitigar',area:'Tecnología'},
+  {d:1,code:'R04',name:'Alucinaciones o respuestas incorrectas en LLM',p:3,i:4,inh:12,res:8,strategy:'Mitigar',area:'Créditos'},
+  {d:1,code:'R05',name:'Falta de explicabilidad / interpretabilidad (caja negra)',p:4,i:5,inh:20,res:16,strategy:'Mitigar',area:'Cumplimiento'},
+  {d:2,code:'R08',name:'Fuga de datos confidenciales hacia proveedor externo',p:2,i:5,inh:10,res:6,strategy:'Mitigar',area:'Tecnología'},
+  {d:2,code:'R09',name:'Incumplimiento protección de datos personales (LOPD/GDPR)',p:3,i:5,inh:15,res:10,strategy:'Mitigar',area:'Cumplimiento'},
+  {d:2,code:'R12',name:'Falta de trazabilidad / linaje de datos del modelo',p:3,i:3,inh:9,res:6,strategy:'Mitigar',area:'Tecnología'},
+  {d:3,code:'R16',name:'Prompt injection en modelo generativo',p:3,i:4,inh:12,res:7,strategy:'Mitigar',area:'Tecnología'},
+  {d:4,code:'R18',name:'Fallo de disponibilidad del sistema IA en producción',p:2,i:4,inh:8,res:5,strategy:'Mitigar',area:'Operaciones'},
+  {d:4,code:'R19',name:'Decisiones autónomas sin supervisión humana suficiente',p:4,i:4,inh:16,res:10,strategy:'Mitigar',area:'Créditos'},
+  {d:5,code:'R24',name:'Incumplimiento EU AI Act / Circulares SB/BCP Paraguay',p:3,i:5,inh:15,res:13,strategy:'Mitigar',area:'Cumplimiento'},
+  {d:5,code:'R25',name:'Uso IA en decisiones reguladas sin aprobación supervisora',p:2,i:5,inh:10,res:8,strategy:'Mitigar',area:'Cumplimiento'},
+  {d:5,code:'R26',name:'Documentación regulatoria insuficiente (Model Cards)',p:3,i:4,inh:12,res:9,strategy:'Mitigar',area:'Cumplimiento'},
+  {d:5,code:'R28',name:'Responsabilidad legal por decisiones autónomas incorrectas',p:2,i:5,inh:10,res:7,strategy:'Aceptar',area:'Cumplimiento'},
+  {d:6,code:'R29',name:'Impacto reputacional por decisiones discriminatorias',p:2,i:5,inh:10,res:7,strategy:'Mitigar',area:'Créditos'},
+  {d:7,code:'R33',name:'Ausencia de propietario del modelo (Model Owner)',p:4,i:3,inh:12,res:8,strategy:'Mitigar',area:'Tecnología'},
+  {d:7,code:'R35',name:'Sin proceso formal de aprobación de modelos (Model Governance)',p:3,i:4,inh:12,res:9,strategy:'Mitigar',area:'Tecnología'},
+  {d:8,code:'R39',name:'Proveedor de IA sin certificaciones de seguridad (SOC2/ISO27001)',p:2,i:4,inh:8,res:5,strategy:'Transferir',area:'Tecnología'},
+];
+
+const KRI_DATA = [
+  {id:'KRI-01',dom:'Modelo/Algoritmo',name:'% predicciones fuera del rango esperado (model drift)',val:8.3,thr:5,unit:'%',hi:true},
+  {id:'KRI-02',dom:'Modelo/Algoritmo',name:'Tasa de alucinaciones detectadas en outputs (muestreo)',val:2.1,thr:1.0,unit:'%',hi:true},
+  {id:'KRI-03',dom:'Modelo/Algoritmo',name:'Score de equidad / fairness por grupo demográfico',val:0.74,thr:0.80,unit:'idx',hi:false},
+  {id:'KRI-05',dom:'Datos',name:'% datos de entrada con calidad insuficiente',val:4.2,thr:3.0,unit:'%',hi:true},
+  {id:'KRI-08',dom:'Ciberseguridad',name:'# intentos de prompt injection / ataques adversariales',val:3,thr:0,unit:'#',hi:true},
+  {id:'KRI-09',dom:'Ciberseguridad',name:'% endpoints IA con autenticación multifactor activa',val:78,thr:100,unit:'%',hi:false},
+  {id:'KRI-10',dom:'Operacional',name:'Disponibilidad del sistema IA — uptime mensual',val:99.1,thr:99.5,unit:'%',hi:false},
+  {id:'KRI-12',dom:'Operacional',name:'% decisiones IA revisadas por humano (human-in-loop)',val:23,thr:80,unit:'%',hi:false},
+  {id:'KRI-13',dom:'Cumplimiento',name:'# observaciones regulatorias relacionadas con IA',val:4,thr:0,unit:'#',hi:true},
+  {id:'KRI-14',dom:'Cumplimiento',name:'% personal usuario capacitado en IA responsable',val:45,thr:90,unit:'%',hi:false},
+];
+
+/* ═══ HELPERS ═══ */
+function getLevel(score){
+  if(score>=16) return {label:'Crítico',cls:'lc',color:'#dc2626',bg:'#fef2f2'};
+  if(score>=12) return {label:'Alto',cls:'lh',color:'#ea580c',bg:'#fff7ed'};
+  if(score>=8)  return {label:'Medio',cls:'lm',color:'#b45309',bg:'#fffbeb'};
+  return {label:'Bajo',cls:'ll',color:'#15803d',bg:'#f0fdf4'};
+}
+function getCellClass(score){
+  if(score>=16) return 'c-critico';
+  if(score>=12) return 'c-alto';
+  if(score>=8)  return 'c-medio';
+  if(score>=4)  return 'c-bajo';
+  return 'c-vbajo';
+}
+function avg(arr){return arr.length? arr.reduce((a,b)=>a+b,0)/arr.length:0;}
+
+/* Active filters */
+let sortCol='inh', sortAsc=false;
+function getFiltered(){
+  const fd=document.getElementById('f-domain').value;
+  const fl=document.getElementById('f-level').value;
+  const fa=document.getElementById('f-area').value;
+  const fs=document.getElementById('f-strat').value;
+  const fap=document.getElementById('f-apetito').value;
+  return ALL_RISKS.filter(r=>{
+    if(fd && String(r.d)!==fd) return false;
+    if(fl && getLevel(r.inh).label!==fl) return false;
+    if(fa && r.area!==fa) return false;
+    if(fs && r.strategy!==fs) return false;
+    if(fap==='fuera' && r.res<=APPETITE) return false;
+    if(fap==='dentro' && r.res>APPETITE) return false;
+    return true;
+  });
+}
+function clearFilters(){
+  ['f-domain','f-level','f-area','f-strat','f-apetito'].forEach(id=>document.getElementById(id).value='');
+  applyFilters();
+}
+function applyFilters(){
+  const data=getFiltered();
+  updateKPIs(data);
+  updateTable(data);
+  updateHeatMap(data);
+  updateCharts(data);
+}
+
+/* ═══ KPIs ═══ */
+function updateKPIs(data){
+  const crit=data.filter(r=>r.inh>=16).length;
+  const fuera=data.filter(r=>r.res>APPETITE).length;
+  const inhAvg=avg(data.map(r=>r.inh)).toFixed(1);
+  const resAvg=avg(data.map(r=>r.res)).toFixed(1);
+  const reduction=data.length? Math.round((1-avg(data.map(r=>r.res))/avg(data.map(r=>r.inh)))*100):0;
+  document.getElementById('k-total').textContent=data.length;
+  document.getElementById('k-crit').textContent=crit;
+  document.getElementById('k-fuera').textContent=fuera;
+  document.getElementById('k-inh').textContent=inhAvg;
+  document.getElementById('k-res').textContent=resAvg;
+  document.getElementById('k-red').textContent=reduction+'%';
+}
+
+/* ═══ HEAT MAP ═══ */
+function updateHeatMap(data){
+  const grid=document.getElementById('hmap-grid');
+  grid.innerHTML='';
+  const cellMap={};
+  data.forEach(r=>{
+    const k=`${r.p}-${r.i}`;
+    if(!cellMap[k]) cellMap[k]=[];
+    cellMap[k].push({code:r.code,name:r.name,inh:r.inh,res:r.res});
+  });
+  for(let p=5;p>=1;p--){
+    const yLbl=document.createElement('div');
+    yLbl.className='hmap-axis';
+    yLbl.textContent=p;
+    grid.appendChild(yLbl);
+    for(let i=1;i<=5;i++){
+      const score=p*i;
+      const cell=document.createElement('div');
+      cell.className='hmap-cell '+getCellClass(score);
+      const k=`${p}-${i}`;
+      if(cellMap[k]){
+        cellMap[k].forEach(r=>{
+          const c=document.createElement('span');
+          c.className='hmap-code';
+          c.textContent=r.code;
+          c.title=`${r.code}: ${r.name}`;
+          cell.appendChild(c);
+        });
+      }
+      cell.addEventListener('mouseenter',e=>{
+        const tt=document.getElementById('tooltip');
+        const risks=cellMap[k];
+        if(risks && risks.length){
+          tt.innerHTML='<strong style="color:#93c5fd">P:'+p+' × I:'+i+' = '+score+'</strong><br>'+
+            risks.map(r=>`<span style="color:${getLevel(r.inh).color}">●</span> ${r.code}: ${r.name.substring(0,42)}...`).join('<br>');
+          tt.style.display='block';
+          tt.style.left=(e.pageX+14)+'px';
+          tt.style.top=(e.pageY-12)+'px';
+        }
+      });
+      cell.addEventListener('mousemove',e=>{
+        const tt=document.getElementById('tooltip');
+        tt.style.left=(e.pageX+14)+'px';
+        tt.style.top=(e.pageY-12)+'px';
+      });
+      cell.addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.display='none';});
+      grid.appendChild(cell);
+    }
+  }
+}
+
+/* ═══ RISK TABLE ═══ */
+function sortTable(col){
+  if(sortCol===col) sortAsc=!sortAsc; else{sortCol=col;sortAsc=col==='code'||col==='domain'||col==='name'||col==='area'||col==='level'||col==='strategy';}
+  updateTable(getFiltered());
+}
+function updateTable(data){
+  const sorted=[...data].sort((a,b)=>{
+    let av,bv;
+    if(sortCol==='code'){av=a.code;bv=b.code;}
+    else if(sortCol==='domain'){av=DOMAINS[a.d].name;bv=DOMAINS[b.d].name;}
+    else if(sortCol==='name'){av=a.name;bv=b.name;}
+    else if(sortCol==='area'){av=a.area;bv=b.area;}
+    else if(sortCol==='inh'){av=a.inh;bv=b.inh;}
+    else if(sortCol==='res'){av=a.res;bv=b.res;}
+    else if(sortCol==='level'){av=a.inh;bv=b.inh;}
+    else if(sortCol==='strategy'){av=a.strategy;bv=b.strategy;}
+    else{av=a.inh;bv=b.inh;}
+    const cmp=typeof av==='number'?(av-bv):(av||'').localeCompare(bv||'');
+    return sortAsc?cmp:-cmp;
+  });
+  document.getElementById('tbl-count').textContent=sorted.length+' riesgo(s)';
+  const tbody=document.getElementById('risk-tbody');
+  tbody.innerHTML='';
+  sorted.forEach(r=>{
+    const lvl=getLevel(r.inh);
+    const rlvl=getLevel(r.res);
+    const fuera=r.res>APPETITE;
+    const dom=DOMAINS[r.d];
+    const maxScore=25;
+    const tr=document.createElement('tr');
+    if(fuera) tr.className='out-apetito';
+    tr.innerHTML=`
+      <td><span style="font-weight:900;color:${dom.color};font-size:12px;letter-spacing:-.01em">${r.code}</span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px"><span class="domain-dot" style="background:${dom.color}"></span><span style="font-size:10px;color:${dom.color};font-weight:700">${dom.short}</span></span></td>
+      <td style="max-width:290px;line-height:1.4;font-size:11px;font-weight:500">${r.name}</td>
+      <td style="font-size:10px;color:var(--muted);font-weight:600">${r.area}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span class="sc-bar" style="width:${Math.round(r.inh/maxScore*56)}px;background:${lvl.color};opacity:.8"></span>
+          <span style="color:${lvl.color};font-size:13px;font-weight:900">${r.inh}</span>
+        </div>
+        <span class="r-badge ${lvl.cls}">${lvl.label}</span>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="sc-bar" style="width:${Math.round(r.res/maxScore*56)}px;background:${rlvl.color};opacity:.8"></span>
+          <span style="color:${rlvl.color};font-size:13px;font-weight:900">${r.res}</span>
+        </div>
+      </td>
+      <td><span class="r-badge ${rlvl.cls}">${rlvl.label}</span></td>
+      <td style="font-size:10px;font-weight:700;color:var(--text2)">${r.strategy}</td>
+      <td style="text-align:center">${fuera?'<span style="color:#dc2626;font-weight:900;font-size:11px">⚠ FUERA</span>':'<span style="color:#15803d;font-weight:700;font-size:11px">✓</span>'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ═══ KRI PANEL ═══ */
+function buildKRIs(){
+  const grid=document.getElementById('kri-grid');
+  grid.innerHTML='';
+  KRI_DATA.forEach(k=>{
+    let status,fillPct,statusColor,fillColor,cardBorder;
+    if(k.hi){
+      const ratio=k.val/Math.max(k.thr*3,k.val*1.5);
+      fillPct=Math.min(100,ratio*100);
+      if(k.val>k.thr*1.5){status='🔴 Crítico';fillColor='#dc2626';statusColor='#b91c1c';cardBorder='#fecaca';}
+      else if(k.val>k.thr){status='🟡 Advertencia';fillColor='#f59e0b';statusColor='#92400e';cardBorder='#fde68a';}
+      else{status='🟢 Normal';fillColor='#22c55e';statusColor='#166534';cardBorder='#bbf7d0';}
+    } else {
+      const max=k.unit==='idx'?1:100;
+      fillPct=Math.min(100,(k.val/max)*100);
+      const pctOfThr=k.val/k.thr;
+      if(pctOfThr<0.6){status='🔴 Crítico';fillColor='#dc2626';statusColor='#b91c1c';cardBorder='#fecaca';}
+      else if(pctOfThr<0.9){status='🟡 Advertencia';fillColor='#f59e0b';statusColor='#92400e';cardBorder='#fde68a';}
+      else{status='🟢 Normal';fillColor='#22c55e';statusColor='#166534';cardBorder='#bbf7d0';}
+    }
+    const card=document.createElement('div');
+    card.className='kri-card';
+    card.style.borderColor=cardBorder;
+    card.innerHTML=`
+      <div class="kri-dom">${k.id} · ${k.dom}</div>
+      <div class="kri-name">${k.name}</div>
+      <div class="kri-track"><div class="kri-fill" style="width:${fillPct}%;background:${fillColor}"></div></div>
+      <div class="kri-meta">
+        <span class="kri-val" style="color:${statusColor}">${k.val} ${k.unit}</span>
+        <span style="color:var(--muted);font-weight:600">Umbral: ${k.thr} ${k.unit}</span>
+        <span style="color:${statusColor};font-weight:700;font-size:9px">${status}</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+/* ═══ CHARTS — Light Theme ═══ */
+let charts={};
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+const CL={
+  textColor:'#374151',
+  mutedColor:'#6b7a96',
+  gridColor:'rgba(0,0,0,.07)',
+  font:{family:"'Segoe UI',system-ui,sans-serif",size:10},
+  fontBold:{family:"'Segoe UI',system-ui,sans-serif",size:10,weight:'700'},
+};
+
+function updateCharts(data){
+  buildDomainChart(data);
+  buildLevelChart(data);
+  buildStratChart(data);
+  buildRadarChart(data);
+  buildAreaChart(data);
+  buildCompareChart(data);
+}
+
+function buildDomainChart(data){
+  destroyChart('domain');
+  const byDom={};
+  Object.keys(DOMAINS).forEach(k=>{byDom[k]={inh:0,count:0};});
+  data.forEach(r=>{byDom[r.d].inh+=r.inh;byDom[r.d].count++;});
+  const labels=Object.values(DOMAINS).map(d=>d.short);
+  const vals=Object.keys(DOMAINS).map(k=>byDom[k].inh||0);
+  const colors=Object.values(DOMAINS).map(d=>d.color);
+  const ctx=document.getElementById('chart-domain').getContext('2d');
+  charts['domain']=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Score inherente acum.',data:vals,backgroundColor:colors.map(c=>c+'28'),borderColor:colors,borderWidth:2,borderRadius:5,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`Score: ${ctx.raw} (${data.filter(r=>r.d==Object.keys(DOMAINS)[ctx.dataIndex]).length} riesgos)`}}},scales:{x:{grid:{color:CL.gridColor},ticks:{color:CL.textColor,font:CL.font}},y:{grid:{display:false},ticks:{color:CL.textColor,font:CL.fontBold}}}}});
+}
+
+function buildLevelChart(data){
+  destroyChart('level');
+  const c={Crítico:0,Alto:0,Medio:0,Bajo:0};
+  data.forEach(r=>{c[getLevel(r.inh).label]++;});
+  const ctx=document.getElementById('chart-level').getContext('2d');
+  charts['level']=new Chart(ctx,{type:'doughnut',data:{labels:Object.keys(c),datasets:[{data:Object.values(c),backgroundColor:['#fef2f2','#fff7ed','#fffbeb','#f0fdf4'],borderColor:['#dc2626','#ea580c','#b45309','#15803d'],borderWidth:2,hoverBorderWidth:3}]},options:{responsive:true,cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:CL.textColor,font:CL.font,padding:10,boxWidth:11}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} riesgo(s)`}}}}});
+}
+
+function buildStratChart(data){
+  destroyChart('strat');
+  const c={Mitigar:0,Aceptar:0,Transferir:0,Evitar:0};
+  data.forEach(r=>{c[r.strategy]=(c[r.strategy]||0)+1;});
+  const ctx=document.getElementById('chart-strat').getContext('2d');
+  charts['strat']=new Chart(ctx,{type:'doughnut',data:{labels:Object.keys(c),datasets:[{data:Object.values(c),backgroundColor:['#eff6ff','#f0fdf4','#faf5ff','#fff7ed'],borderColor:['#2563eb','#15803d','#6d28d9','#ea580c'],borderWidth:2,hoverBorderWidth:3}]},options:{responsive:true,cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:CL.textColor,font:CL.font,padding:10,boxWidth:11}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw}`}}}}});
+}
+
+function buildRadarChart(data){
+  destroyChart('radar');
+  const domAvg=Object.keys(DOMAINS).map(k=>{
+    const dr=data.filter(r=>r.d==k);
+    return dr.length? avg(dr.map(r=>r.inh)):0;
+  });
+  const ctx=document.getElementById('chart-radar').getContext('2d');
+  charts['radar']=new Chart(ctx,{type:'radar',data:{labels:Object.values(DOMAINS).map(d=>d.short),datasets:[{label:'Score Inh. Promedio',data:domAvg,backgroundColor:'rgba(37,99,235,.1)',borderColor:'#2563eb',borderWidth:2,pointBackgroundColor:Object.values(DOMAINS).map(d=>d.color),pointBorderColor:'#fff',pointRadius:5,pointHoverRadius:7}]},options:{responsive:true,scales:{r:{grid:{color:CL.gridColor},angleLines:{color:CL.gridColor},pointLabels:{color:CL.textColor,font:CL.fontBold},ticks:{color:CL.mutedColor,backdropColor:'transparent',font:{size:8}},min:0,max:25}},plugins:{legend:{display:false}}}});
+}
+
+function buildAreaChart(data){
+  destroyChart('area');
+  const areas=['Créditos','Tecnología','Cumplimiento','Operaciones'];
+  const inhVals=areas.map(a=>avg(data.filter(r=>r.area===a).map(r=>r.inh))||0);
+  const resVals=areas.map(a=>avg(data.filter(r=>r.area===a).map(r=>r.res))||0);
+  const ctx=document.getElementById('chart-area').getContext('2d');
+  charts['area']=new Chart(ctx,{type:'bar',data:{labels:areas,datasets:[{label:'Inherente Prom.',data:inhVals,backgroundColor:'rgba(220,38,38,.15)',borderColor:'#dc2626',borderWidth:2,borderRadius:5,borderSkipped:false},{label:'Residual Prom.',data:resVals,backgroundColor:'rgba(37,99,235,.15)',borderColor:'#2563eb',borderWidth:2,borderRadius:5,borderSkipped:false}]},options:{responsive:true,plugins:{legend:{labels:{color:CL.textColor,font:CL.font,boxWidth:10}}},scales:{x:{grid:{display:false},ticks:{color:CL.textColor,font:CL.font}},y:{grid:{color:CL.gridColor},ticks:{color:CL.mutedColor,font:CL.font},max:25}}}});
+}
+
+function buildCompareChart(data){
+  destroyChart('compare');
+  const top=[...data].sort((a,b)=>b.inh-a.inh).slice(0,10);
+  const ctx=document.getElementById('chart-compare').getContext('2d');
+  charts['compare']=new Chart(ctx,{type:'bar',data:{labels:top.map(r=>r.code),datasets:[{label:'Inherente',data:top.map(r=>r.inh),backgroundColor:'rgba(220,38,38,.15)',borderColor:'#dc2626',borderWidth:2,borderRadius:4,borderSkipped:false},{label:'Residual',data:top.map(r=>r.res),backgroundColor:'rgba(37,99,235,.15)',borderColor:'#2563eb',borderWidth:2,borderRadius:4,borderSkipped:false}]},options:{responsive:true,plugins:{legend:{labels:{color:CL.textColor,font:CL.font,boxWidth:10}}},scales:{x:{grid:{display:false},ticks:{color:CL.textColor,font:CL.font}},y:{grid:{color:CL.gridColor},ticks:{color:CL.mutedColor,font:CL.font},max:25}}}});
+  // Appetite line
+  const plugin={id:'appetiteLine',afterDraw(chart){
+    const {ctx,scales:{y,x}}=chart;
+    if(!y||!x) return;
+    const yPx=y.getPixelForValue(APPETITE);
+    ctx.save();ctx.strokeStyle='rgba(234,88,12,.7)';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(x.left,yPx);ctx.lineTo(x.right,yPx);ctx.stroke();
+    ctx.fillStyle='rgba(234,88,12,.9)';ctx.font='bold 9px Segoe UI';ctx.fillText('Apetito ('+APPETITE+')',x.right-72,yPx-4);
+    ctx.restore();
+  }};
+  Chart.register(plugin);
+}
+
+/* ═══ CONCLUSIONS ═══ */
+function buildConclusions(){
+  const fuera=ALL_RISKS.filter(r=>r.res>APPETITE);
+  const crit=ALL_RISKS.filter(r=>r.inh>=16);
+  document.getElementById('conc-critical').innerHTML=
+    `• <strong>${crit.length} riesgos críticos</strong> con score inherente ≥16 (R01, R05, R19).<br>`+
+    `• <strong>${fuera.length} riesgos fuera del apetito</strong> declarado (residual >12): R01, R05, R24.<br>`+
+    `• <strong>5 KRIs en estado rojo</strong> incluyendo tasa de alucinaciones (2.1% vs umbral 1%) y supervisión humana (23% vs 80% requerido).<br>`+
+    `• <strong>Dominio Cumplimiento/Regulatorio</strong> concentra el mayor riesgo acumulado (5 riesgos, score total 52).<br>`+
+    `• <strong>EU AI Act y circulares SB/BCP:</strong> el sistema puede clasificarse como IA de Alto Riesgo — requiere aprobación supervisora formal.`;
+  document.getElementById('conc-recs').innerHTML=
+    `• <strong>INMEDIATO:</strong> Suspender decisiones autónomas sin human-in-loop (R19) hasta alcanzar supervisión mínima del 80%.<br>`+
+    `• <strong>30 días:</strong> Designar Model Owner formal y activar proceso de gobernanza de modelos (R33, R35).<br>`+
+    `• <strong>60 días:</strong> Implementar sistema de explicabilidad (XAI) para cumplir derecho a explicación regulatorio (R05).<br>`+
+    `• <strong>90 días:</strong> Completar documentación regulatoria (Model Card) y notificar al regulador SB/BCP (R24, R26).<br>`+
+    `• <strong>Continuo:</strong> Monitoreo mensual de fairness — KRI-03 actual: 0.74 vs umbral 0.80 (déficit crítico).`;
+}
+
+/* ═══ FULLSCREEN ═══ */
+function toggleFullscreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+/* ═══ INIT ═══ */
+window.addEventListener('DOMContentLoaded',()=>{
+  // Light theme Chart.js defaults
+  Chart.defaults.color='#374151';
+  Chart.defaults.borderColor='rgba(0,0,0,.07)';
+  Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
+  const data=ALL_RISKS;
+  updateKPIs(data);
+  updateHeatMap(data);
+  updateTable(data);
+  updateCharts(data);
+  buildKRIs();
+  buildConclusions();
+});
+</script>
+</body>
+</html>
