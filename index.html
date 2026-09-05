@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIRAT — AI Risk Assessment Tool v1.0</title>
+<title>AIRM — AI Risk Management v1.0</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
@@ -50,7 +50,7 @@ tr:hover td{background:#f0f4f8;}
 <div id="airat-loading" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f1f5f9;z-index:9999;font-family:'Segoe UI',sans-serif;">
   <div style="background:white;border-radius:12px;padding:36px 44px;box-shadow:0 4px 24px rgba(0,0,0,.12);text-align:center;max-width:520px;width:90%">
     <div style="font-size:28px;margin-bottom:8px;">🛡️</div>
-    <div style="font-size:20px;font-weight:700;color:#1e3a5f;margin-bottom:6px;">AIRAT v1.0</div>
+    <div style="font-size:20px;font-weight:700;color:#1e3a5f;margin-bottom:6px;">AIRM v1.0</div>
     <div id="airat-status" style="font-size:13px;color:#6b7280;margin-bottom:16px;">Cargando recursos…</div>
     <div style="height:4px;border-radius:2px;background:#e5e7eb;overflow:hidden;width:200px;margin:0 auto;">
       <div id="airat-bar" style="height:100%;border-radius:2px;background:#1e3a5f;width:0%;transition:width .4s;"></div>
@@ -499,7 +499,7 @@ function Header(){
   const roleIcons={'area-usuaria':'👤','gerencia-riesgos':'🛡️','auditoria':'🔍'};
   function saveState(){
     const json=JSON.stringify(state,null,2);
-    const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(json);a.download='AIRAT_estado.json';a.click();
+    const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(json);a.download='AIRM_estado.json';a.click();
     dispatch({type:'TOAST',title:'Estado guardado',msg:'Archivo JSON descargado.',type_:'ok'});
   }
   function loadState(e){
@@ -513,8 +513,8 @@ function Header(){
     <div style={{display:'flex',alignItems:'center',gap:10}}>
       <span style={{fontSize:22}}>🤖</span>
       <div>
-        <div style={{fontWeight:800,fontSize:15,letterSpacing:.3}}>AIRAT</div>
-        <div style={{fontSize:10,opacity:.7,letterSpacing:.5}}>AI RISK ASSESSMENT TOOL v1.0</div>
+        <div style={{fontWeight:800,fontSize:15,letterSpacing:.3}}>AIRM</div>
+        <div style={{fontSize:10,opacity:.7,letterSpacing:.5}}>AI RISK MANAGEMENT v1.0</div>
       </div>
     </div>
     {state.project&&<div style={{background:'rgba(255,255,255,.12)',borderRadius:6,padding:'4px 12px',fontSize:12,maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
@@ -2007,7 +2007,7 @@ function Module6(){
         {execSummary().map((line,i)=><div key={i} style={{marginBottom:i<execSummary().length-1?6:0,paddingLeft:line.startsWith('⚠️')||line.startsWith('🔴')||line.startsWith('🟡')||line.startsWith('🚨')||line.startsWith('📋')?0:0}}>{line}</div>)}
       </div>
       <div style={{marginTop:12,fontSize:10,color:'#9ca3af',borderTop:'1px solid #e5e7eb',paddingTop:8}}>
-        Generado automáticamente por AIRAT v1.0 · {new Date().toLocaleString('es-PY')} · Basado en {total} iniciativas registradas
+        Generado automáticamente por AIRM v1.0 · {new Date().toLocaleString('es-PY')} · Basado en {total} iniciativas registradas
       </div>
     </div>
   </div>;
@@ -2052,7 +2052,7 @@ function App(){
       {showDemo&&<div className="modal-overlay" style={{zIndex:200}}>
         <div className="modal-box" style={{textAlign:'center',maxWidth:480}}>
           <div style={{fontSize:40,marginBottom:12}}>🤖</div>
-          <div style={{fontSize:20,fontWeight:800,color:'#1e3a5f',marginBottom:8}}>AIRAT — AI Risk Assessment Tool</div>
+          <div style={{fontSize:20,fontWeight:800,color:'#1e3a5f',marginBottom:8}}>AIRM — AI Risk Management</div>
           <div style={{fontSize:13,color:'#6b7280',marginBottom:20,lineHeight:1.6}}>
             Herramienta de evaluación de riesgos de Inteligencia Artificial para entidades financieras.<br/>
             <strong>¿Desea cargar datos de ejemplo</strong> para explorar todas las funcionalidades?<br/>
@@ -2098,7 +2098,7 @@ function App(){
           </div>}
           {/* Footer */}
           <div style={{marginTop:24,borderTop:'1px solid #e5e7eb',paddingTop:12,fontSize:10,color:'#9ca3af',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:4}}>
-            <span>AIRAT v1.0 | AI Risk Assessment Tool | © Prime Consultores {new Date().getFullYear()}</span>
+            <span>AIRM v1.0 | AI Risk Management | © Prime Consultores {new Date().getFullYear()}</span>
             <span>ISO/IEC 42001 · NIST AI RMF 1.0 · EU AI Act · COSO ERM 2017 · ISO 31000 · Basel III · SR 11-7 · SB/BCP Paraguay</span>
           </div>
         </div>
